@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from accounts.views import LoginAPI, SignupAPI
+from accounts.views import LoginAPI, SignupAPI, protected_view
 # from rest_framework_simplejwt.views import TokenObtainPairView
 
 urlpatterns = [
@@ -24,4 +24,5 @@ urlpatterns = [
     # path('login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('login/', LoginAPI.as_view()),
     path('signup/', SignupAPI.as_view()),
+    path('protected/', protected_view),
 ]
