@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.contrib.auth.models import User
 
 # Create your views here.
 from rest_framework.views import APIView
@@ -22,3 +23,18 @@ class LoginAPI(APIView):
             })
 
         return Response({"error": "Invalid credentials"}, status=401)
+
+class SignupAPI(APIView):
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        if User.objects.filter(username=username).exists():
+            return Response({"error": "User already exists"}, status=400)
+
+        user = User.objects.create_user(
+            username=username,
+            password=password
+        )
+
+        return Response({"message": "User created successfully"})
