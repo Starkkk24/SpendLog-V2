@@ -52,3 +52,18 @@ def protected_view(request):
         "message": "You are logged in",
         "user": request.user.username
     })
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+
+class LogoutAPI(APIView):
+    def post(self, request):
+        refresh_token = request.data.get("refresh")
+
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response({"message": "Logged out"})
+        except:
+            return Response({"error": "Invalid token"}, status=400)
