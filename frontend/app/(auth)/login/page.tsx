@@ -26,6 +26,7 @@ export default function LoginPage() {
       localStorage.setItem("access", data.access);
       localStorage.setItem("refresh", data.refresh);
       alert("Login success");
+      window.location.href = "/dashboard";
     } else {
       alert("Login failed");
     }
