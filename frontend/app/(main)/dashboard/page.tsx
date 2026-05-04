@@ -2,7 +2,24 @@
 
 import { useEffect, useState } from "react";
 
-function logout() {
+async function logout() {
+    const refresh = localStorage.getItem("refresh");
+    try{
+        await fetch(
+            "http://127.0.0.1:8000/logout/",
+            {
+                method: "POST",
+                headers: {
+                    "Content-type": "application/json"
+                },
+                body: JSON.stringify({ refresh }),
+            }
+        );
+    }
+    catch (err) {
+        console.log("Logout API failed", err);
+    }
+
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
     window.location.href = "/login"
