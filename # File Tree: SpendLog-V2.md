@@ -1,6 +1,6 @@
 # File Tree: SpendLog-V2
 
-**Generated:** 4/27/2026, 11:23:12 PM
+**Generated:** 5/4/2026, 4:00:16 PM
 **Root Path:** `/D/GH_CodeArena/GitRepos/SpendLog-V2`
 
 ```
@@ -20,12 +20,42 @@
 │   │   ├── 🐍 settings.py
 │   │   ├── 🐍 urls.py
 │   │   └── 🐍 wsgi.py
-│   ├── 📄 db.sqlite3
 │   ├── 🐍 manage.py
 │   └── 📄 requirements.txt
 ├── 📁 frontend
+│   ├── 📁 app
+│   │   ├── 📁 (auth)
+│   │   │   ├── 📁 login
+│   │   │   │   └── 📄 page.tsx
+│   │   │   └── 📁 signup
+│   │   │       └── 📄 page.tsx
+│   │   ├── 📁 (main)
+│   │   │   └── 📁 dashboard
+│   │   │       └── 📄 page.tsx
+│   │   ├── 📄 favicon.ico
+│   │   ├── 🎨 globals.css
+│   │   ├── 📄 layout.tsx
+│   │   └── 📄 page.tsx
+│   ├── 📁 public
+│   │   ├── 🖼️ file.svg
+│   │   ├── 🖼️ globe.svg
+│   │   ├── 🖼️ next.svg
+│   │   ├── 🖼️ vercel.svg
+│   │   └── 🖼️ window.svg
+│   ├── ⚙️ .gitignore
+│   ├── 📝 AGENTS.md
+│   ├── 📝 CLAUDE.md
+│   ├── 📝 README.md
+│   ├── 📄 eslint.config.mjs
+│   ├── 📄 next-env.d.ts
+│   ├── 📄 next.config.ts
+│   ├── ⚙️ package-lock.json
+│   ├── ⚙️ package.json
+│   ├── 📄 postcss.config.mjs
+│   └── ⚙️ tsconfig.json
 ├── 📝 # File Tree: SpendLog-V2.md
 ├── ⚙️ .codex
+├── ⚙️ .gitignore
 └── 📝 README.md
 ```
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
+import {fetchWithAuth} from "@/lib/api";
 
 async function logout() {
     const refresh = localStorage.getItem("refresh");
@@ -36,7 +37,7 @@ export default function DashboardPage() {
                 window.location.href = "/login";
                 return;
             }
-            const res = await fetch(
+            const res = await fetchWithAuth(
                 "http://127.0.0.1:8000/protected/",
                 {
                     headers: {
