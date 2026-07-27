@@ -1,6 +1,6 @@
 # File Tree: SpendLog-V2
 
-**Generated:** 5/4/2026, 4:00:16 PM
+**Generated:** 6/12/2026, 9:50:04 PM
 **Root Path:** `/D/GH_CodeArena/GitRepos/SpendLog-V2`
 
 ```
@@ -21,7 +21,7 @@
 │   │   ├── 🐍 urls.py
 │   │   └── 🐍 wsgi.py
 │   ├── 🐍 manage.py
-│   └── 📄 requirements.txt
+│   └── 📄 requirements.txt/
 ├── 📁 frontend
 │   ├── 📁 app
 │   │   ├── 📁 (auth)
@@ -36,6 +36,8 @@
 │   │   ├── 🎨 globals.css
 │   │   ├── 📄 layout.tsx
 │   │   └── 📄 page.tsx
+│   ├── 📁 lib
+│   │   └── 📄 api.ts
 │   ├── 📁 public
 │   │   ├── 🖼️ file.svg
 │   │   ├── 🖼️ globe.svg
