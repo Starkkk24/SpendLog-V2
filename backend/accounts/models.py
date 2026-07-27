@@ -40,7 +40,7 @@ class Transaction(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.note or 'Transaction'} - ₹{self.total_amount}"
+        return f"{self.paid_by.name} - ₹{self.total_amount}"
 
 
 class TransactionSplit(models.Model):
