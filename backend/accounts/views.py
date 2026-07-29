@@ -11,6 +11,11 @@ from rest_framework.response import Response
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from .models import Contact
+from .serializers import ContactSerializer
+
+from django.shortcuts import get_object_or_404
+
 class LoginAPI(APIView):
     def post(self, request):
         username = request.data.get("username")
@@ -67,3 +72,43 @@ class LogoutAPI(APIView):
             return Response({"message": "Logged out"})
         except:
             return Response({"error": "Invalid token"}, status=400)
+
+
+@api_view(["GET","POST"])
+@permission_classes([IsAuthenticated])
+def contact_list(request):
+    if request.method == 'GET':
+        contacts = Contact.objects.filter(owner=request.user)
+        serializer = ContactSerializer(contacts, many=True)
+        return Response(serializer.data)
+    elif request.method == "POST":
+        serializer = ContactSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(owner=request.user)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+@api_view(["GET", "PATCH", "DELETE"])
+@permission_classes([IsAuthenticated])
+def contact_detail(request, pk):
+    contact = get_object_or_404(
+         Contact,
+         id=pk,
+         owner=request.user
+    )
+    if request.method == "GET":
+        serializer = ContactSerializer(contact)
+        return Response(serializer.data)
+    elif request.method == "PATCH":
+        serializer = ContactSerializer(
+            contact,
+            data = request.data,
+            partial=True
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=200)
+        return Response(serializer.errors, status=400)
+    elif request.method == "DELETE":
+        contact.delete()
+        return Response(status=204)

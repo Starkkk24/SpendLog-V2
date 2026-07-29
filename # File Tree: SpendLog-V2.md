@@ -1,17 +1,19 @@
 # File Tree: SpendLog-V2
 
-**Generated:** 6/12/2026, 9:50:04 PM
+**Generated:** 7/29/2026, 6:51:13 PM
 **Root Path:** `/D/GH_CodeArena/GitRepos/SpendLog-V2`
 
 ```
 ├── 📁 backend
 │   ├── 📁 accounts
 │   │   ├── 📁 migrations
+│   │   │   ├── 🐍 0001_initial.py
 │   │   │   └── 🐍 __init__.py
 │   │   ├── 🐍 __init__.py
 │   │   ├── 🐍 admin.py
 │   │   ├── 🐍 apps.py
 │   │   ├── 🐍 models.py
+│   │   ├── 🐍 serializers.py
 │   │   ├── 🐍 tests.py
 │   │   └── 🐍 views.py
 │   ├── 📁 backend
@@ -21,7 +23,7 @@
 │   │   ├── 🐍 urls.py
 │   │   └── 🐍 wsgi.py
 │   ├── 🐍 manage.py
-│   └── 📄 requirements.txt/
+│   └── 📄 requirements.txt
 ├── 📁 frontend
 │   ├── 📁 app
 │   │   ├── 📁 (auth)

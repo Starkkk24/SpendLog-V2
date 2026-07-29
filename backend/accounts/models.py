@@ -7,7 +7,7 @@ class Contact(models.Model):
     owner = models.ForeignKey(
         User,
         on_delete = models.PROTECT,
-        related_name="contacts"
+        related_name="contacts" #what is related_name ?
     )
     name = models.CharField(max_length=100)
     created_at = models.DateTimeField(auto_now_add=True)
