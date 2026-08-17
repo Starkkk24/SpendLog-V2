@@ -1,6 +1,6 @@
 # File Tree: SpendLog-V2
 
-**Generated:** 7/29/2026, 6:51:13 PM
+**Generated:** 8/17/2026, 4:04:12 AM
 **Root Path:** `/D/GH_CodeArena/GitRepos/SpendLog-V2`
 
 ```
@@ -38,6 +38,8 @@
 │   │   ├── 🎨 globals.css
 │   │   ├── 📄 layout.tsx
 │   │   └── 📄 page.tsx
+│   ├── 📁 components
+│   ├── 📁 hooks
 │   ├── 📁 lib
 │   │   └── 📄 api.ts
 │   ├── 📁 public
@@ -46,6 +48,10 @@
 │   │   ├── 🖼️ next.svg
 │   │   ├── 🖼️ vercel.svg
 │   │   └── 🖼️ window.svg
+│   ├── 📁 services
+│   │   └── 📄 auth.ts
+│   ├── 📁 types
+│   ├── 📁 utils
 │   ├── ⚙️ .gitignore
 │   ├── 📝 AGENTS.md
 │   ├── 📝 CLAUDE.md
@@ -60,6 +66,7 @@
 ├── 📝 # File Tree: SpendLog-V2.md
 ├── ⚙️ .codex
 ├── ⚙️ .gitignore
+├── 📝 CODEBASE_STATE.md
 └── 📝 README.md
 ```
 
