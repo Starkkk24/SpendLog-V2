@@ -12,7 +12,7 @@ from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import Contact
-from .serializers import ContactSerializer
+from .serializers import ContactSerializer, SignupSerializer
 
 from django.shortcuts import get_object_or_404
 
@@ -35,18 +35,19 @@ class LoginAPI(APIView):
 
 class SignupAPI(APIView):
     def post(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
+        serializer = SignupSerializer(data=request.data)
 
-        if User.objects.filter(username=username).exists():
-            return Response({"error": "User already exists"}, status=400)
+        if serializer.is_valid():
+            serializer.save()
 
-        user = User.objects.create_user(
-            username=username,
-            password=password
+            return Response(
+                {"message":"User created successfully"},
+                status=201
+            )
+        return Response(
+            serializer.errors,
+            status=400
         )
-
-        return Response({"message": "User created successfully"})
     
 
 
