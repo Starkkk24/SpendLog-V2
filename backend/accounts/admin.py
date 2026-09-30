@@ -10,10 +10,10 @@ class ContactAdmin(admin.ModelAdmin):
 
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
-    list_display = ("id", "paid_by", "total_amount", "transaction_datetime")
+    list_display = ("id", "payer_user", "payer_contact", "total_amount", "transaction_datetime")
     list_filter = ("transaction_datetime",)
 
 
 @admin.register(TransactionSplit)
 class TransactionSplitAdmin(admin.ModelAdmin):
-    list_display = ("id", "transaction", "contact", "signed_amount")
+    list_display = ("id", "transaction", "contact", "amount")

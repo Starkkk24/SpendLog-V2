@@ -38,3 +38,8 @@ export async function signup(username: string, password: string, password2: stri
    const response = await api.post("/signup/", {username, password, password2});
    return response.data;
 }
+
+export async function getCurrentUser() {
+    const response = await api.get("/protected/");
+    return response.data;
+}

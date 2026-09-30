@@ -26,48 +26,78 @@ class Contact(models.Model):
 
 
 class Transaction(models.Model):
-    paid_by = models.ForeignKey(
+    payer_user = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="transactions_paid_as_user"
+    )
+
+    payer_contact = models.ForeignKey(
         Contact,
-        on_delete = models.PROTECT,
-        related_name = "transactions_paid"
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="transactions_paid_as_contact"
     )
+
     total_amount = models.DecimalField(
-            max_digits=10,
-            decimal_places=2
+        max_digits=10,
+        decimal_places=2
     )
+
     note = models.TextField(blank=True)
+
     transaction_datetime = models.DateTimeField()
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.paid_by.name} - ₹{self.total_amount}"
+        payer = self.payer_user or self.payer_contact
+        return f"{payer} - ₹{self.total_amount}"
 
 
 class TransactionSplit(models.Model):
     transaction = models.ForeignKey(
         Transaction,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="splits"
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="transaction_splits_as_user"
     )
 
     contact = models.ForeignKey(
         Contact,
         on_delete=models.PROTECT,
-        related_name="transaction_splits"
+        null=True,
+        blank=True,
+        related_name="transaction_splits_as_contact"
     )
 
-    signed_amount = models.DecimalField(
+    amount = models.DecimalField(
         max_digits=10,
         decimal_places=2
     )
 
     class Meta:
         constraints = [
-          models.UniqueConstraint(
-             fields=["transaction", "contact"],
-             name="unique_contact_per_transaction"
-         )
+            models.UniqueConstraint(
+                fields=["transaction", "user"],
+                name="unique_user_per_transaction"
+            ),
+            models.UniqueConstraint(
+                fields=["transaction", "contact"],
+                name="unique_contact_per_transaction"
+            ),
         ]
 
     def __str__(self):
-        return f"{self.contact.name}: {self.signed_amount}"
+        participant = self.user or self.contact
+        return f"{participant}: ₹{self.amount}"
