@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Contact, Transaction
+from .models import Contact, Transaction, TransactionSplit
 from .serializers import ContactSerializer, SignupSerializer, TransactionSerializer
 
 from django.shortcuts import get_object_or_404
@@ -189,3 +189,63 @@ def transaction_detail(request, pk):
     elif request.method == "DELETE":
         transaction_obj.delete()
         return Response(status=204)
+
+# 30-09-2026
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def balance_view(request, pk):
+
+    user = request.user
+
+    contact = Contact.objects.get(
+        id=pk,
+        owner=user
+    )
+
+    balance = 0
+    transactions =[]
+
+    splits = TransactionSplit.objects.filter(
+        Q(
+            transaction__payer_user=user,
+            contact=contact
+        )
+        |
+        Q(
+            transaction__payer_contact=contact,
+            user=user
+        )
+    ).select_related(
+        "transaction",
+        "transaction__payer_user",
+        "transaction__payer_contact"
+    )
+
+    for split in splits:
+
+        transaction = split.transaction
+        
+        if transaction.payer_user == user:
+            amount = split.amount
+            paid_by = user.username
+            balance += split.amount
+
+        elif transaction.payer_contact == contact:
+            amount = -split.amount
+            paid_by = contact.name
+            balance -= split.amount
+
+        transactions.append({
+            "id": transaction.id,
+            "amount": amount,
+            "date": transaction.transaction_datetime,
+            "paid_by": paid_by,
+            "note" : transaction.note,
+        })
+
+    return Response({
+        "contact_id": contact.id,
+        "contact_name": contact.name,
+        "balance": balance,
+        "transactions": transactions,
+    })

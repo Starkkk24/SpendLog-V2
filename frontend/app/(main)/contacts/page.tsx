@@ -1,5 +1,5 @@
 "use client";
-
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
     getContacts,
@@ -180,7 +180,12 @@ export default function ContactsPage() {
                                     </div>
                                 ) : (
                                     <div className="flex items-center justify-between">
-                                        <span>{contact.name}</span>
+                                        <Link
+                                            href={`/contacts/${contact.id}`}
+                                            className="text-blue-400 hover:text-blue-300"
+                                        >
+                                            {contact.name}
+                                        </Link>
 
                                         <div className="flex gap-3">
                                             <button
