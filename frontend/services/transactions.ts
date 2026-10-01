@@ -1,5 +1,14 @@
 import api from "@/lib/api";
 
+
+export async function settleSplit(splitId: number) {
+    const response = await api.post(
+        `/transaction-splits/${splitId}/settle/`
+    );
+
+    return response.data;
+}
+
 export async function getTransactions() {
     const response = await api.get("/transactions/");
     return response.data;

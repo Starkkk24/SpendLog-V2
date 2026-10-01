@@ -86,6 +86,10 @@ class TransactionSplit(models.Model):
         decimal_places=2
     )
 
+    settled = models.BooleanField(
+        default=False
+    )
+
     class Meta:
         constraints = [
             models.UniqueConstraint(

@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getBalance } from "@/services/balance";
+import { settleSplit } from "@/services/transactions";
 
 interface Transaction {
     id: number;
+    split_id: number;
     amount: number;
     date: string;
     paid_by: string;
@@ -27,11 +29,13 @@ export default function ContactProfilePage() {
     const contactId = Number(params.id);
 
     const [data, setData] = useState<BalanceData | null>(null);
+    const [showSettled, setShowSettled] = useState(false);
+
     const [loading, setLoading] = useState(true);
 
     async function loadBalance() {
         try {
-            const response = await getBalance(contactId);
+            const response = await getBalance(contactId, showSettled);
 
             setData({
                 ...response,
@@ -52,7 +56,16 @@ export default function ContactProfilePage() {
 
     useEffect(() => {
         loadBalance();
-    }, [contactId]);
+    }, [contactId, showSettled]);
+
+    async function handleSettle(splitId: number) {
+        try {
+            await settleSplit(splitId);
+            await loadBalance();
+        } catch (error) {
+            console.error("Failed to settle split:", error);
+        }
+    }
 
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
@@ -89,20 +102,20 @@ export default function ContactProfilePage() {
 
                             {data.balance > 0 ? (
                                 <>
-                                <p className="text-green-500 text-2xl font-bold">+{data.balance}</p>
-                                <p className="text-amber-100 ">
-                                    {data.contact_name} owes you ₹
-                                    {data.balance}
-                                </p>                                
+                                    <p className="text-green-500 text-2xl font-bold">+{data.balance}</p>
+                                    <p className="text-amber-100 ">
+                                        {data.contact_name} owes you ₹
+                                        {data.balance}
+                                    </p>
                                 </>
 
                             ) : data.balance < 0 ? (
                                 <>
-                                <p className="text-red-500 text-2xl font-bold">{data.balance}</p>
-                                <p className="text-amber-100 ">
-                                    You owe {data.contact_name} ₹
-                                    {Math.abs(data.balance)}
-                                </p>
+                                    <p className="text-red-500 text-2xl font-bold">{data.balance}</p>
+                                    <p className="text-amber-100 ">
+                                        You owe {data.contact_name} ₹
+                                        {Math.abs(data.balance)}
+                                    </p>
                                 </>
 
                             ) : (
@@ -115,9 +128,33 @@ export default function ContactProfilePage() {
 
                         {/* Transaction History */}
                         <div>
-                            <h2 className="text-xl font-semibold mb-4">
-                                Transactions
-                            </h2>
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-semibold">
+                                    Transactions
+                                </h2>
+
+                                <div className="flex rounded-lg bg-gray-700 p-1">
+                                    <button
+                                        onClick={() => setShowSettled(false)}
+                                        className={`px-3 py-1.5 rounded-md text-sm ${!showSettled
+                                            ? "bg-gray-900 text-white"
+                                            : "text-gray-400"
+                                            }`}
+                                    >
+                                        Unsettled
+                                    </button>
+
+                                    <button
+                                        onClick={() => setShowSettled(true)}
+                                        className={`px-3 py-1.5 rounded-md text-sm ${showSettled
+                                            ? "bg-gray-900 text-white"
+                                            : "text-gray-400"
+                                            }`}
+                                    >
+                                        Settled
+                                    </button>
+                                </div>
+                            </div>
 
                             {data.transactions.length === 0 ? (
                                 <p className="text-gray-400">
@@ -126,13 +163,14 @@ export default function ContactProfilePage() {
                             ) : (
                                 <div className="space-y-3">
                                     {data.transactions.map((transaction) => (
-                                        <Link
+                                        <div
                                             key={transaction.id}
-                                            href={`/transactions/${transaction.id}`}
-                                            className="block bg-gray-800 rounded-xl p-4 hover:bg-gray-700 transition"
+                                            className="flex items-center justify-between bg-gray-800 rounded-xl p-4"
                                         >
-                                            <div className="flex items-center justify-between">
-
+                                            <Link
+                                                href={`/transactions/${transaction.id}`}
+                                                className="flex-1"
+                                            >
                                                 <div>
                                                     <p className="font-semibold">
                                                         {transaction.note}
@@ -144,31 +182,34 @@ export default function ContactProfilePage() {
                                                         ).toLocaleString()}
                                                     </p>
 
-                                                    <p className="text-sm text-amber-200">
-                                                        {transaction.paid_by} paid
+                                                    <p className="text-sm text-gray-400">
+                                                        {transaction.paid_by}
                                                     </p>
-
                                                 </div>
+                                            </Link>
 
+                                            <div className="flex items-center gap-4">
                                                 <p
                                                     className={`text-lg font-bold ${transaction.amount > 0
                                                         ? "text-green-400"
-                                                        : transaction.amount < 0
-                                                            ? "text-red-400"
-                                                            : "text-gray-400"
+                                                        : "text-red-400"
                                                         }`}
                                                 >
                                                     {transaction.amount > 0
                                                         ? `+₹${transaction.amount}`
-                                                        : transaction.amount < 0
-                                                            ? `-₹${Math.abs(
-                                                                transaction.amount
-                                                            )}`
-                                                            : "₹0"}
+                                                        : `-₹${Math.abs(transaction.amount)}`}
                                                 </p>
-
+                                                <button
+                                                    onClick={() => handleSettle(transaction.split_id)}
+                                                    className={`px-3 py-2 rounded-lg ${showSettled
+                                                            ? "bg-yellow-600 hover:bg-yellow-500"
+                                                            : "bg-green-600 hover:bg-green-500"
+                                                        }`}
+                                                >
+                                                    {showSettled ? "UNSETTLE" : "SETTLE"}
+                                                </button>
                                             </div>
-                                        </Link>
+                                        </div>
                                     ))}
                                 </div>
                             )}

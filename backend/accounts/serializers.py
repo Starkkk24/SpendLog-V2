@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Contact, Transaction, TransactionSplit
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models import Q, Sum
 
 class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -43,11 +44,13 @@ class TransactionSplitSerializer(serializers.ModelSerializer):
     class Meta:
         model = TransactionSplit
         fields = [
+            "id",
             "user",
             "user_name",
             "contact",
             "contact_name",
             "amount",
+            "settled",
         ]
 
     def get_user_name(self, obj):
@@ -63,6 +66,8 @@ class TransactionSerializer(serializers.ModelSerializer):
     payer_user_name = serializers.SerializerMethodField()
     payer_contact_name = serializers.SerializerMethodField()
 
+    remaining_amount = serializers.SerializerMethodField()
+
     class Meta:
         model = Transaction
         fields = [
@@ -72,12 +77,20 @@ class TransactionSerializer(serializers.ModelSerializer):
             "payer_contact",
             "payer_contact_name",
             "total_amount",
+            "remaining_amount",
             "note",
             "transaction_datetime",
             "splits",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def get_remaining_amount(self, obj):
+        return obj.splits.filter(
+            settled=False
+        ).aggregate(
+            total=Sum("amount")
+        )["total"] or 0
 
     def get_payer_user_name(self, obj):
         return obj.payer_user.username if obj.payer_user else None

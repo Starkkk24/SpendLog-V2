@@ -202,10 +202,43 @@ def balance_view(request, pk):
         owner=user
     )
 
-    balance = 0
-    transactions =[]
 
+    transactions = []
+
+    settled_param = request.query_params.get("settled", "false")
+    show_settled = settled_param.lower() == "true"
+
+    balance = 0
+
+    # 1. Calculate balance ONLY from unsettled splits
+    unsettled_splits = TransactionSplit.objects.filter(
+        settled=False
+    ).filter(
+        Q(
+            transaction__payer_user=user,
+            contact=contact
+        )
+        |
+        Q(
+            transaction__payer_contact=contact,
+            user=user
+        )
+    )
+
+    for split in unsettled_splits:
+        transaction = split.transaction
+
+        if transaction.payer_user == user:
+            balance += split.amount
+
+        elif transaction.payer_contact == contact:
+            balance -= split.amount
+
+
+    # 2. Get transactions according to selected tab
     splits = TransactionSplit.objects.filter(
+        settled=show_settled
+    ).filter(
         Q(
             transaction__payer_user=user,
             contact=contact
@@ -221,26 +254,30 @@ def balance_view(request, pk):
         "transaction__payer_contact"
     )
 
+
+    # 3. Build transaction display data
+    transactions = []
+
     for split in splits:
 
         transaction = split.transaction
-        
+
         if transaction.payer_user == user:
             amount = split.amount
             paid_by = user.username
-            balance += split.amount
 
         elif transaction.payer_contact == contact:
             amount = -split.amount
             paid_by = contact.name
-            balance -= split.amount
 
         transactions.append({
             "id": transaction.id,
+            "split_id": split.id,
             "amount": amount,
             "date": transaction.transaction_datetime,
             "paid_by": paid_by,
-            "note" : transaction.note,
+            "note": transaction.note,
+            "settled": split.settled,
         })
 
     return Response({
@@ -248,4 +285,69 @@ def balance_view(request, pk):
         "contact_name": contact.name,
         "balance": balance,
         "transactions": transactions,
+    })
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def settle_split_view(request, pk):
+
+    user = request.user
+
+    try:
+        split = TransactionSplit.objects.select_related(
+            "transaction",
+            "contact",
+            "user",
+            "transaction__payer_user",
+            "transaction__payer_contact",
+        ).get(id=pk)
+    except TransactionSplit.DoesNotExist:
+        return Response(
+            {"error": "Split not found."},
+            status=404
+        )
+
+    transaction = split.transaction
+
+    # Check that this split belongs to a transaction
+    # involving the current user and their contact.
+    valid = (
+        transaction.payer_user == user
+        and split.contact is not None
+        and split.contact.owner == user
+    ) or (
+        transaction.payer_contact is not None
+        and transaction.payer_contact.owner == user
+        and split.user == user
+    )
+
+    # print("CURRENT USER:", user.id, user.username)
+    # print("PAYER USER:", transaction.payer_user_id)
+    # print("PAYER CONTACT:", transaction.payer_contact_id)
+    # print("SPLIT USER:", split.user_id)
+    # print("SPLIT CONTACT:", split.contact_id)
+
+    if not valid:
+        return Response(
+            {"error": "You are not authorized to settle this split."},
+            status=403
+        )
+
+    # print("========== SETTLEMENT DEBUG ==========")
+    # print("CURRENT USER:", user.id, user.username)
+    # print("TRANSACTION:", split.transaction_id)
+    # print("PAYER USER:", split.transaction.payer_user_id)
+    # print("PAYER CONTACT:", split.transaction.payer_contact_id)
+    # print("SPLIT USER:", split.user_id)
+    # print("SPLIT CONTACT:", split.contact_id)
+    # print("CONTACT OWNER:", split.contact.owner_id if split.contact else None)
+    # print("SETTLED:", split.settled)
+    # print("======================================")
+    split.settled = not split.settled
+    split.save(update_fields=["settled"])
+
+    return Response({
+        "message": "Split settled successfully.",
+        "split_id": split.id,
+        "settled": split.settled,
     })

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { getTransaction } from "@/services/transactions";
+import { getTransaction, settleSplit } from "@/services/transactions";
 
 type Split = {
     id: number;
@@ -12,6 +12,7 @@ type Split = {
     contact: number | null;
     contact_name: string | null;
     amount: string;
+    settled: boolean;
 };
 
 type Transaction = {
@@ -21,6 +22,7 @@ type Transaction = {
     payer_contact: number | null;
     payer_contact_name: string | null;
     total_amount: string;
+    remaining_amount: string;
     note: string;
     transaction_datetime: string;
     splits: Split[];
@@ -49,6 +51,39 @@ export default function TransactionDetailPage() {
 
         loadTransaction();
     }, [params.id]);
+
+    function canSettle(split: Split) {
+        // Current user paid, contact owes them
+        if (
+            transaction?.payer_user !== null &&
+            split.contact !== null
+        ) {
+            return true;
+        }
+
+        // Contact paid, current user owes them
+        if (
+            transaction?.payer_contact !== null &&
+            split.user !== null
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    async function handleSettle(splitId: number) {
+        try {
+            await settleSplit(splitId);
+
+            const data = await getTransaction(Number(params.id));
+            setTransaction(data);
+        } catch (error) {
+            console.error("Failed to settle split:", error);
+        }
+    }
+
+
 
     if (loading) {
         return (
@@ -107,14 +142,22 @@ export default function TransactionDetailPage() {
                             </p>
                         </div>
 
-                        <p className="text-xl font-semibold tabular-nums text-white">
-                            ₹
-                            {Number(
-                                transaction.total_amount
-                            ).toLocaleString("en-IN", {
-                                minimumFractionDigits: 2,
-                            })}
-                        </p>
+                        <div className="space-y-1">
+                            <p className="text-xl font-semibold tabular-nums text-white">
+                                ₹
+                                {Number(transaction.total_amount).toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                })}
+                            </p>
+
+                            <p className="text-sm text-gray-400 tabular-nums">
+                                ₹
+                                {Number(transaction.remaining_amount).toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                })}{" "}
+                                remaining
+                            </p>
+                        </div>
                     </div>
 
                     <div className="mt-6 rounded-xl bg-slate-700 px-4 py-3">
@@ -142,7 +185,7 @@ export default function TransactionDetailPage() {
                                 >
                                     {split.contact ? (
                                         <Link
-                                            key={`contact-${split.contact}`}
+                                            // key={`contact-${split.contact}`}
                                             href={`/contacts/${split.contact}`}
                                         >
                                             <span className="text-sm text-white">
@@ -159,6 +202,19 @@ export default function TransactionDetailPage() {
                                     <span className="text-sm font-semibold tabular-nums text-white">
                                         ₹{Number(split.amount).toFixed(2)}
                                     </span>
+
+                                    {canSettle(split) && (
+                                        <button
+                                            onClick={() => handleSettle(split.id)}
+                                            className={`px-3 py-2 rounded-lg ${split.settled
+                                                ? "bg-yellow-600 hover:bg-yellow-500"
+                                                : "bg-green-600 hover:bg-green-500"
+                                                }`}
+                                        >
+                                            {split.settled ? "UNSETTLE" : "SETTLE"}
+                                        </button>
+                                    )}
+
                                 </div>
                             ))}
                         </div>
