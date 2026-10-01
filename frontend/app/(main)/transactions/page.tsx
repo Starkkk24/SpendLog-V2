@@ -55,13 +55,13 @@ export default function TransactionsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50">
+        <div className="min-h-screen bg-gray-900 text-white p-8">
             <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
 
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+                        <h1 className="text-2xl font-semibold tracking-tight text-white">
                             Transactions
                         </h1>
 
@@ -83,7 +83,7 @@ export default function TransactionsPage() {
                     <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
                         <h2 className="text-base font-semibold text-slate-900">
                             No transactions yet
-                        </h2>
+                        </h2>bg-gray-800 p-4 rounded-lg
 
                         <p className="mt-1 text-sm text-slate-500">
                             Create your first transaction to start building your SpendLog.
@@ -95,23 +95,23 @@ export default function TransactionsPage() {
                             <div
                                 key={transaction.id}
                                 onClick={() => router.push(`/transactions/${transaction.id}`)}
-                                className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md"
+                                className="cursor-pointer rounded-2xl  bg-gray-800 p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md"
                             >
                                 <div className="flex items-start justify-between gap-4">
 
                                     <div className="min-w-0">
-                                        <h2 className="truncate font-semibold text-slate-900">
+                                        <h2 className="truncate font-semibold text-white">
                                             {transaction.note || "Untitled transaction"}
                                         </h2>
 
-                                        <p className="mt-1 text-sm text-slate-500">
+                                        <p className="mt-1 text-sm text-shadow-blue-100">
                                             {new Date(
                                                 transaction.transaction_datetime
                                             ).toLocaleString("en-IN")}
                                         </p>
                                     </div>
 
-                                    <p className="shrink-0 text-lg font-semibold tabular-nums text-slate-900">
+                                    <p className="shrink-0 text-lg font-semibold tabular-nums text-white">
                                         ₹
                                         {Number(
                                             transaction.total_amount
@@ -121,8 +121,8 @@ export default function TransactionsPage() {
                                     </p>
                                 </div>
 
-                                <div className="mt-4 border-t border-slate-100 pt-4">
-                                    <p className="text-sm text-slate-500">
+                                <div className="mt-4 border-t border-slate-50 pt-4">
+                                    <p className="text-sm text-slate-300">
                                         {transaction.splits.length} participant
                                         {transaction.splits.length !== 1 ? "s" : ""}
                                     </p>
