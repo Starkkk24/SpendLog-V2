@@ -1,4 +1,7 @@
 "use client";
+
+import FAB from "@/components/ui/FAB";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -22,6 +25,7 @@ export default function ContactsPage() {
     const [submitting, setSubmitting] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editingName, setEditingName] = useState("");
+    const [showCreateModal, setShowCreateModal] = useState(false);
 
     async function loadContacts() {
         try {
@@ -106,34 +110,70 @@ export default function ContactsPage() {
     }
 
     return (
-        <main className="min-h-screen bg-gray-900 text-white p-8">
+        <main className="min-h-screen bg-sp-bg px-4 pb-24 pt-6 text-white sm:px-6">
             <div className="max-w-2xl mx-auto">
 
-                <h1 className="text-3xl font-bold mb-8">
-                    Contacts
-                </h1>
+                <div className="mb-6">
+                    <h1 className="text-2xl font-semibold">Contacts</h1>
+                    <p className="mt-1 text-sm text-sp-muted">
+                        Your people and balances
+                    </p>
+                </div>
 
                 {/* Create Contact */}
-                <form
-                    onSubmit={handleCreate}
-                    className="flex gap-3 mb-8"
-                >
-                    <input
-                        type="text"
-                        placeholder="Contact name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="flex-1 p-3 rounded-lg text-white"
-                    />
-
-                    <button
-                        type="submit"
-                        disabled={submitting}
-                        className="px-5 py-3 bg-blue-600 rounded-lg disabled:bg-gray-500"
+                {showCreateModal && (
+                    <div
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
+                        onClick={() => setShowCreateModal(false)}
                     >
-                        {submitting ? "Adding..." : "Add"}
-                    </button>
-                </form>
+                        <div
+                            className="w-full max-w-sm rounded-2xl bg-sp-surface p-5 shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-lg font-semibold text-white">
+                                    Create Contact
+                                </h2>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCreateModal(false)}
+                                    className="flex h-9 w-9 items-center justify-center rounded-full text-sp-muted transition hover:bg-white/10 hover:text-white"
+                                    aria-label="Close"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            {/* Form */}
+                            <form
+                                onSubmit={async (e) => {
+                                    await handleCreate(e);
+                                    setShowCreateModal(false);
+                                }}
+                                className="mt-5 space-y-4"
+                            >
+                                <input
+                                    type="text"
+                                    placeholder="Contact name"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    autoFocus
+                                    className="w-full rounded-xl bg-sp-bg px-4 py-3 text-white outline-none placeholder:text-sp-muted focus:ring-2 focus:ring-sp-primary"
+                                />
+
+                                <button
+                                    type="submit"
+                                    disabled={submitting}
+                                    className="w-full rounded-xl bg-sp-primary px-4 py-3 text-sm font-medium text-white transition hover:bg-sp-primary-deep disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {submitting ? "Adding..." : "Add Contact"}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                )}
 
                 {/* Contact List */}
                 {loading ? (
@@ -143,77 +183,107 @@ export default function ContactsPage() {
                         No contacts yet.
                     </p>
                 ) : (
-                    <div className="space-y-3">
-                        {contacts.map((contact) => (
-                            <div
-                                key={contact.id}
-                                className="bg-gray-800 p-4 rounded-lg"
-                            >
-                                {editingId === contact.id ? (
-                                    <div className="flex gap-3">
-                                        <input
-                                            type="text"
-                                            value={editingName}
-                                            onChange={(e) =>
-                                                setEditingName(e.target.value)
-                                            }
-                                            className="flex-1 p-2 rounded-lg text-black"
-                                        />
+                    <div className="mt-8">
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-sp-muted">
+                            Contacts
+                        </p>
 
-                                        <button
-                                            onClick={() => handleUpdate(contact.id)}
-                                            disabled={submitting}
-                                            className="px-4 py-2 bg-green-600 rounded-lg disabled:bg-gray-500"
-                                        >
-                                            Save
-                                        </button>
-
-                                        <button
-                                            onClick={() => {
-                                                setEditingId(null);
-                                                setEditingName("");
-                                            }}
-                                            className="px-4 py-2 bg-gray-600 rounded-lg"
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center justify-between">
-                                        <Link
-                                            href={`/contacts/${contact.id}`}
-                                            className="text-blue-400 hover:text-blue-300"
-                                        >
-                                            {contact.name}
-                                        </Link>
-
-                                        <div className="flex gap-3">
-                                            <button
-                                                onClick={() => {
-                                                    setEditingId(contact.id);
-                                                    setEditingName(contact.name);
-                                                }}
-                                                className="text-blue-400 hover:text-blue-300"
-                                            >
-                                                Edit
-                                            </button>
+                        <div>
+                            {contacts.map((contact) => (
+                                <div
+                                    key={contact.id}
+                                    className="border-b border-white/5"
+                                >
+                                    {editingId === contact.id ? (
+                                        <div className="flex gap-3 py-4">
+                                            <input
+                                                type="text"
+                                                value={editingName}
+                                                onChange={(e) =>
+                                                    setEditingName(e.target.value)
+                                                }
+                                                className="min-w-0 flex-1 rounded-xl bg-sp-surface px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-sp-primary"
+                                            />
 
                                             <button
                                                 onClick={() =>
-                                                    handleDelete(contact.id)
+                                                    handleUpdate(contact.id)
                                                 }
-                                                className="text-red-400 hover:text-red-300"
+                                                disabled={submitting}
+                                                className="rounded-xl bg-sp-success px-4 py-2.5 text-sm font-medium text-sp-bg disabled:opacity-50"
                                             >
-                                                Delete
+                                                Save
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setEditingId(null);
+                                                    setEditingName("");
+                                                }}
+                                                className="rounded-xl bg-sp-surface px-4 py-2.5 text-sm text-sp-muted hover:text-white"
+                                            >
+                                                Cancel
                                             </button>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                                    ) : (
+                                        <div className="flex items-center gap-3 py-4">
+                                            {/* Contact */}
+                                            <Link
+                                                href={`/contacts/${contact.id}`}
+                                                className="flex min-w-0 flex-1 items-center gap-4"
+                                            >
+                                                {/* Initial */}
+                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sp-primary-deep text-sm font-semibold text-white">
+                                                    {contact.name
+                                                        .charAt(0)
+                                                        .toUpperCase()}
+                                                </div>
+
+                                                {/* Name */}
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-sm font-medium text-white">
+                                                        {contact.name}
+                                                    </p>
+                                                </div>
+
+                                                {/* Arrow */}
+                                                <span className="text-lg text-sp-muted">
+                                                    →
+                                                </span>
+                                            </Link>
+
+                                            {/* Actions */}
+                                            <div className="flex shrink-0 items-center gap-3">
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingId(contact.id);
+                                                        setEditingName(contact.name);
+                                                    }}
+                                                    className="text-xs text-sp-primary hover:text-white"
+                                                >
+                                                    Edit
+                                                </button>
+
+                                                <button
+                                                    onClick={() =>
+                                                        handleDelete(contact.id)
+                                                    }
+                                                    className="text-xs text-red-400 hover:text-red-300"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
-
+                <FAB
+                    label="Create contact"
+                    onClick={() => setShowCreateModal(true)}
+                />
             </div>
         </main>
     );

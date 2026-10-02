@@ -68,12 +68,12 @@ export default function ContactProfilePage() {
     }
 
     return (
-        <main className="min-h-screen bg-gray-900 text-white p-8">
-            <div className="max-w-2xl mx-auto">
+        <main className="min-h-screen bg-sp-bg px-4 pb-24 pt-6 text-white sm:px-6">
+            <div className="mx-auto max-w-2xl">
 
                 <button
                     onClick={() => router.back()}
-                    className="mb-6 text-blue-400 hover:text-blue-300"
+                    className="mb-6 text-sm text-sp-muted transition hover:text-white"
                 >
                     ← Back
                 </button>
@@ -89,56 +89,72 @@ export default function ContactProfilePage() {
                 ) : (
                     <>
                         {/* Contact Name */}
-                        <h1 className="text-3xl font-bold mb-8">
-                            {data.contact_name}
-                        </h1>
+                        <div className="mb-6">
+                            <h1 className="text-2xl font-semibold">
+                                {data.contact_name}
+                            </h1>
+
+                            <p className="mt-1 text-sm text-sp-muted">
+                                Contact balance
+                            </p>
+                        </div>
 
                         {/* Balance */}
-                        <div className="bg-gray-800 rounded-xl p-6 mb-8">
-
-                            <h2 className="text-xl font-semibold mb-4">
+                        <div className="mb-8 rounded-2xl bg-sp-surface p-5">
+                            <h2 className="text-sm font-medium text-sp-muted">
                                 Net Balance
                             </h2>
 
                             {data.balance > 0 ? (
                                 <>
-                                    <p className="text-green-500 text-2xl font-bold">+{data.balance}</p>
-                                    <p className="text-amber-100 ">
-                                        {data.contact_name} owes you ₹
-                                        {data.balance}
+                                    <p className="mt-2 text-3xl font-semibold tabular-nums text-sp-success">
+                                        +₹{data.balance.toLocaleString("en-IN", {
+                                            minimumFractionDigits: 2,
+                                        })}
+                                    </p>
+
+                                    <p className="mt-1 text-sm text-sp-muted">
+                                        {data.contact_name} owes you
                                     </p>
                                 </>
-
                             ) : data.balance < 0 ? (
                                 <>
-                                    <p className="text-red-500 text-2xl font-bold">{data.balance}</p>
-                                    <p className="text-amber-100 ">
-                                        You owe {data.contact_name} ₹
-                                        {Math.abs(data.balance)}
+                                    <p className="mt-2 text-3xl font-semibold tabular-nums text-red-400">
+                                        -₹{Math.abs(data.balance).toLocaleString("en-IN", {
+                                            minimumFractionDigits: 2,
+                                        })}
+                                    </p>
+
+                                    <p className="mt-1 text-sm text-sp-muted">
+                                        You owe {data.contact_name}
                                     </p>
                                 </>
-
                             ) : (
-                                <p className="text-2xl font-bold">
-                                    Settled
-                                </p>
-                            )}
+                                <>
+                                    <p className="mt-2 text-3xl font-semibold">
+                                        ₹0.00
+                                    </p>
 
+                                    <p className="mt-1 text-sm text-sp-muted">
+                                        Settled
+                                    </p>
+                                </>
+                            )}
                         </div>
 
                         {/* Transaction History */}
                         <div>
-                            <div className="flex items-center justify-between mb-4">
+                            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <h2 className="text-xl font-semibold">
                                     Transactions
                                 </h2>
 
-                                <div className="flex rounded-lg bg-gray-700 p-1">
+                                <div className="flex rounded-xl bg-sp-surface p-1">
                                     <button
                                         onClick={() => setShowSettled(false)}
-                                        className={`px-3 py-1.5 rounded-md text-sm ${!showSettled
-                                            ? "bg-gray-900 text-white"
-                                            : "text-gray-400"
+                                        className={`rounded-lg px-4 py-2 text-sm font-medium transition ${!showSettled
+                                            ? "bg-sp-primary text-white"
+                                            : "text-sp-muted hover:text-white"
                                             }`}
                                     >
                                         Unsettled
@@ -146,9 +162,9 @@ export default function ContactProfilePage() {
 
                                     <button
                                         onClick={() => setShowSettled(true)}
-                                        className={`px-3 py-1.5 rounded-md text-sm ${showSettled
-                                            ? "bg-gray-900 text-white"
-                                            : "text-gray-400"
+                                        className={`rounded-lg px-4 py-2 text-sm font-medium transition ${showSettled
+                                            ? "bg-sp-primary text-white"
+                                            : "text-sp-muted hover:text-white"
                                             }`}
                                     >
                                         Settled
@@ -165,7 +181,7 @@ export default function ContactProfilePage() {
                                     {data.transactions.map((transaction) => (
                                         <div
                                             key={transaction.id}
-                                            className="flex items-center justify-between bg-gray-800 rounded-xl p-4"
+                                            className="flex items-center justify-between gap-4 rounded-2xl bg-sp-surface p-4"
                                         >
                                             <Link
                                                 href={`/transactions/${transaction.id}`}
@@ -176,13 +192,13 @@ export default function ContactProfilePage() {
                                                         {transaction.note}
                                                     </p>
 
-                                                    <p className="text-sm text-gray-400">
+                                                    <p className="text-sm text-sp-muted">
                                                         {new Date(
                                                             transaction.date
                                                         ).toLocaleString()}
                                                     </p>
 
-                                                    <p className="text-sm text-gray-400">
+                                                    <p className="text-sm text-sp-muted">
                                                         {transaction.paid_by}
                                                     </p>
                                                 </div>
@@ -190,20 +206,28 @@ export default function ContactProfilePage() {
 
                                             <div className="flex items-center gap-4">
                                                 <p
-                                                    className={`text-lg font-bold ${transaction.amount > 0
-                                                        ? "text-green-400"
-                                                        : "text-red-400"
+                                                    className={`shrink-0 text-lg font-semibold tabular-nums ${transaction.amount > 0
+                                                        ? "text-sp-success"
+                                                        : transaction.amount < 0
+                                                            ? "text-red-400"
+                                                            : "text-white"
                                                         }`}
                                                 >
                                                     {transaction.amount > 0
-                                                        ? `+₹${transaction.amount}`
-                                                        : `-₹${Math.abs(transaction.amount)}`}
+                                                        ? `+₹${transaction.amount.toLocaleString("en-IN", {
+                                                            minimumFractionDigits: 2,
+                                                        })}`
+                                                        : transaction.amount < 0
+                                                            ? `-₹${Math.abs(transaction.amount).toLocaleString("en-IN", {
+                                                                minimumFractionDigits: 2,
+                                                            })}`
+                                                            : "₹0.00"}
                                                 </p>
                                                 <button
                                                     onClick={() => handleSettle(transaction.split_id)}
-                                                    className={`px-3 py-2 rounded-lg ${showSettled
-                                                            ? "bg-yellow-600 hover:bg-yellow-500"
-                                                            : "bg-green-600 hover:bg-green-500"
+                                                    className={`rounded-xl px-3 py-2 text-sm font-medium transition ${showSettled
+                                                        ? "bg-yellow-600 hover:bg-yellow-500"
+                                                        : "bg-sp-primary hover:bg-sp-primary-deep"
                                                         }`}
                                                 >
                                                     {showSettled ? "UNSETTLE" : "SETTLE"}
