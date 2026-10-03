@@ -116,140 +116,155 @@ export default function TransactionDetailPage() {
         );
     }
 
-    return (
-        <main className="min-h-screen bg-sp-bg px-4 pb-24 pt-6 text-white sm:px-6">
-            <div className="mx-auto max-w-3xl">
+return (
+    <main className="min-h-screen bg-sp-bg px-4 pb-24 pt-6 text-white sm:px-6">
+        <div className="mx-auto max-w-3xl">
 
-                <button
-                    onClick={() => router.push("/transactions")}
-                    className="text-sm font-medium text-sp-muted transition hover:text-white"
-                >
-                    ← Back to transactions
-                </button>
+            {/* Back */}
+            <button
+                onClick={() => router.push("/transactions")}
+                className="text-sm font-medium text-sp-muted transition hover:text-white"
+            >
+                ← Transactions
+            </button>
 
-                {/* Transaction Header */}
-                <div className="mt-6 rounded-2xl bg-sp-surface p-5 sm:p-6">
-
-                    <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                            <h1 className="truncate text-2xl font-semibold text-white">
-                                {transaction.note || "Untitled transaction"}
-                            </h1>
-
-                            <p className="mt-1 text-sm text-sp-muted">
-                                {new Date(
-                                    transaction.transaction_datetime
-                                ).toLocaleString("en-IN")}
-                            </p>
-                        </div>
-
-                        <div className="shrink-0 space-y-1 text-right">
-                            <p className="text-xl font-semibold tabular-nums text-white">
-                                ₹
-                                {Number(
-                                    transaction.total_amount
-                                ).toLocaleString("en-IN", {
-                                    minimumFractionDigits: 2,
-                                })}
-                            </p>
-
-                            <p className="text-sm tabular-nums text-sp-muted">
-                                ₹
-                                {Number(
-                                    transaction.remaining_amount
-                                ).toLocaleString("en-IN", {
-                                    minimumFractionDigits: 2,
-                                })}{" "}
-                                remaining
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Paid By */}
-                    <div className="mt-6 rounded-xl bg-sp-primary-deep px-4 py-3">
-                        <p className="text-xs font-medium uppercase tracking-wide text-sp-muted">
-                            Paid by
+            {/* Transaction Summary */}
+            <div className="mt-8">
+                <div className="flex items-start justify-between gap-6">
+                    <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-sp-muted">
+                            Transaction
                         </p>
 
-                        <p className="mt-1 text-sm font-semibold text-white">
-                            {transaction.payer_user_name ||
-                                transaction.payer_contact_name}
+                        <h1 className="mt-2 truncate text-2xl font-semibold text-white">
+                            {transaction.note || "Untitled transaction"}
+                        </h1>
+
+                        <p className="mt-2 text-sm text-sp-muted">
+                            {new Date(
+                                transaction.transaction_datetime
+                            ).toLocaleString("en-IN")}
                         </p>
                     </div>
 
-                    {/* Splits */}
-                    <div className="mt-6 border-t border-white/10 pt-6">
-                        <h2 className="text-sm font-semibold text-sp-muted">
-                            Split
-                        </h2>
+                    <div className="shrink-0 text-right">
+                        <p className="text-2xl font-semibold tabular-nums text-white">
+                            ₹
+                            {Number(
+                                transaction.total_amount
+                            ).toLocaleString("en-IN", {
+                                minimumFractionDigits: 2,
+                            })}
+                        </p>
 
-                        <div className="mt-3 space-y-3">
-                            {transaction.splits.map((split) => (
-                                <div
-                                    key={`${split.user ?? "u"}-${split.contact ?? "c"}`}
-                                    className="flex flex-col gap-3 rounded-xl bg-sp-bg p-4 sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                    {/* Participant */}
-                                    <div className="min-w-0">
-                                        {split.contact ? (
-                                            <Link
-                                                href={`/contacts/${split.contact}`}
-                                                className="text-sm font-medium text-white transition hover:text-sp-primary"
-                                            >
-                                                {split.contact_name}
-                                            </Link>
-                                        ) : (
-                                            <span className="text-sm font-medium text-white">
-                                                {split.user_name}
-                                            </span>
-                                        )}
-
-                                        <p
-                                            className={`mt-1 text-xs ${split.settled
-                                                ? "text-sp-success"
-                                                : "text-sp-muted"
-                                                }`}
-                                        >
-                                            {split.settled
-                                                ? "Settled"
-                                                : "Unsettled"}
-                                        </p>
-                                    </div>
-
-                                    {/* Amount + Action */}
-                                    <div className="flex items-center gap-3">
-                                        {/* <div className="flex shrink-0 items-center gap-3"> */}
-                                        <span className="text-sm font-semibold tabular-nums text-white">
-                                            ₹
-                                            {Number(
-                                                split.amount
-                                            ).toLocaleString("en-IN", {
-                                                minimumFractionDigits: 2,
-                                            })}
-                                        </span>
-
-                                        {canSettle(split) && (
-                                            <button
-                                                onClick={() =>
-                                                    handleSettle(split.id)
-                                                }
-                                                className={`rounded-xl px-3 py-2 text-sm font-medium transition ${split.settled
-                                                    ? "bg-yellow-600 hover:bg-yellow-500"
-                                                    : "bg-sp-primary hover:bg-sp-primary-deep"
-                                                    }`}
-                                            >
-                                                {split.settled
-                                                    ? "UNSETTLE"
-                                                    : "SETTLE"}
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        <p className="mt-1 text-sm tabular-nums text-sp-muted">
+                            ₹
+                            {Number(
+                                transaction.remaining_amount
+                            ).toLocaleString("en-IN", {
+                                minimumFractionDigits: 2,
+                            })}{" "}
+                            remaining
+                        </p>
                     </div>
                 </div>
+
+                {/* Paid By */}
+                <div className="mt-8 border-y border-white/5 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-sp-muted">
+                        Paid by
+                    </p>
+
+                    <p className="mt-1 text-sm font-medium text-white">
+                        {transaction.payer_user_name ||
+                            transaction.payer_contact_name}
+                    </p>
+                </div>
             </div>
-        </main>
-    );
+
+            {/* Splits */}
+            <div className="mt-8">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-sp-muted">
+                    Splits
+                </p>
+
+                <div>
+                    {transaction.splits.map((split) => (
+                        <div
+                            key={`${split.user ?? "u"}-${split.contact ?? "c"}`}
+                            className="flex items-center gap-4 border-b border-white/5 py-4"
+                        >
+                            {/* Participant */}
+                            <div className="flex min-w-0 flex-1 items-center gap-4">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sp-primary-deep text-sm font-semibold text-white">
+                                    {(split.contact_name ||
+                                        split.user_name ||
+                                        "?")
+                                        .charAt(0)
+                                        .toUpperCase()}
+                                </div>
+
+                                <div className="min-w-0">
+                                    {split.contact ? (
+                                        <Link
+                                            href={`/contacts/${split.contact}`}
+                                            className="block truncate text-sm font-medium text-white transition hover:text-sp-primary"
+                                        >
+                                            {split.contact_name}
+                                        </Link>
+                                    ) : (
+                                        <p className="truncate text-sm font-medium text-white">
+                                            {split.user_name}
+                                        </p>
+                                    )}
+
+                                    <p
+                                        className={`mt-1 text-xs ${
+                                            split.settled
+                                                ? "text-sp-success"
+                                                : "text-sp-muted"
+                                        }`}
+                                    >
+                                        {split.settled
+                                            ? "Settled"
+                                            : "Unsettled"}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Amount + Action */}
+                            <div className="flex shrink-0 items-center gap-3">
+                                <span className="text-sm font-semibold tabular-nums text-white">
+                                    ₹
+                                    {Number(
+                                        split.amount
+                                    ).toLocaleString("en-IN", {
+                                        minimumFractionDigits: 2,
+                                    })}
+                                </span>
+
+                                {canSettle(split) && (
+                                    <button
+                                        onClick={() =>
+                                            handleSettle(split.id)
+                                        }
+                                        className={`rounded-xl px-3 py-2 text-xs font-medium transition ${
+                                            split.settled
+                                                ? "bg-yellow-600 hover:bg-yellow-500"
+                                                : "bg-sp-primary hover:bg-sp-primary-deep"
+                                        }`}
+                                    >
+                                        {split.settled
+                                            ? "UNSETTLE"
+                                            : "SETTLE"}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    </main>
+);
 }

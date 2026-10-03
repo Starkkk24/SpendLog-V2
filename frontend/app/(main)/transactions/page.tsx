@@ -32,6 +32,34 @@ export default function TransactionsPage() {
     const [showCreateTransaction, setShowCreateTransaction] =
         useState(false);
 
+    const [sortBy, setSortBy] = useState<
+        "newest" | "oldest" | "high" | "low"
+    >("newest");
+
+    const sortedTransactions = [...transactions].sort((a, b) => {
+        if (sortBy === "newest") {
+            return (
+                new Date(b.transaction_datetime).getTime() -
+                new Date(a.transaction_datetime).getTime()
+            );
+        }
+
+        if (sortBy === "oldest") {
+            return (
+                new Date(a.transaction_datetime).getTime() -
+                new Date(b.transaction_datetime).getTime()
+            );
+        }
+
+        if (sortBy === "high") {
+            return Number(b.total_amount) - Number(a.total_amount);
+        }
+
+        return Number(a.total_amount) - Number(b.total_amount);
+    });
+
+    const [showSort, setShowSort] = useState(false);
+
     async function loadTransactions() {
         try {
             const data = await getTransactions();
@@ -74,6 +102,13 @@ export default function TransactionsPage() {
                             Your spending history
                         </p>
                     </div>
+                                        <button
+                        type="button"
+                        onClick={() => setShowSort(true)}
+                        className="rounded-xl bg-sp-surface px-3 py-2 text-xs font-medium text-sp-muted transition hover:text-white"
+                    >
+                        Sort
+                    </button>
 
 
                 </div>
@@ -91,7 +126,7 @@ export default function TransactionsPage() {
                     </div>
                 ) : (
                     <div className="mt-8">
-                        {transactions.map((transaction, index) => {
+                        {sortedTransactions.map((transaction, index) => {
                             const currentDate = new Date(
                                 transaction.transaction_datetime
                             );
@@ -204,6 +239,58 @@ export default function TransactionsPage() {
                 label="Create transaction"
                 onClick={() => setShowCreateTransaction(true)}
             />
+
+                            {showSort && (
+                    <div className="fixed inset-0 z-[100] bg-black/50">
+                        <div className="absolute inset-x-0 bottom-0 rounded-t-[28px] bg-sp-bg p-5 shadow-2xl">
+                            <div className="mb-5 flex items-center justify-between">
+                                <h2 className="text-lg font-semibold text-white">
+                                    Sort
+                                </h2>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSort(false)}
+                                    className="text-sp-muted hover:text-white"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            <div className="space-y-2">
+                                {[
+                                    ["newest", "Newest first"],
+                                    ["oldest", "Oldest first"],
+                                    ["high", "Amount: high → low"],
+                                    ["low", "Amount: low → high"],
+                                ].map(([value, label]) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => {
+                                            setSortBy(
+                                                value as
+                                                | "newest"
+                                                | "oldest"
+                                                | "high"
+                                                | "low"
+                                            );
+                                            setShowSort(false);
+                                        }}
+                                        className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm transition ${sortBy === value
+                                                ? "bg-sp-primary text-white"
+                                                : "bg-sp-surface text-sp-muted hover:text-white"
+                                            }`}
+                                    >
+                                        {label}
+
+                                        {sortBy === value && "✓"}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
         </main>
     );
 }

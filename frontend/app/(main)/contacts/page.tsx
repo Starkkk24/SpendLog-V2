@@ -27,6 +27,10 @@ export default function ContactsPage() {
     const [editingName, setEditingName] = useState("");
     const [showCreateModal, setShowCreateModal] = useState(false);
 
+    const [searchQuery, setSearchQuery] = useState("");
+    const [sortBy, setSortBy] = useState<"az" | "za">("az");
+    const [showSort, setShowSort] = useState(false);
+
     async function loadContacts() {
         try {
             const data = await getContacts();
@@ -109,6 +113,22 @@ export default function ContactsPage() {
         }
     }
 
+    const displayedContacts = contacts
+        .filter((contact) =>
+            contact.name
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase())
+        )
+        .sort((a, b) => {
+            const comparison = a.name.localeCompare(b.name);
+
+            return sortBy === "az"
+                ? comparison
+                : -comparison;
+        });
+
+
+
     return (
         <main className="min-h-screen bg-sp-bg px-4 pb-24 pt-6 text-white sm:px-6">
             <div className="max-w-2xl mx-auto">
@@ -123,7 +143,7 @@ export default function ContactsPage() {
                 {/* Create Contact */}
                 {showCreateModal && (
                     <div
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
+                        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
                         onClick={() => setShowCreateModal(false)}
                     >
                         <div
@@ -184,107 +204,188 @@ export default function ContactsPage() {
                     </p>
                 ) : (
                     <div className="mt-8">
-                        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-sp-muted">
+
+                        {/* Search + Sort */}
+                        <div className="flex items-center gap-2">
+                            <div className="flex min-w-0 flex-1 items-center rounded-xl bg-sp-surface px-4">
+                                <span className="mr-2 text-sp-muted">
+                                    🔍
+                                </span>
+
+                                <input
+                                    type="text"
+                                    placeholder="Search contacts..."
+                                    value={searchQuery}
+                                    onChange={(e) =>
+                                        setSearchQuery(e.target.value)
+                                    }
+                                    className="min-w-0 flex-1 bg-transparent py-3 text-sm text-white outline-none placeholder:text-sp-muted"
+                                />
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setShowSort(true)}
+                                className="shrink-0 rounded-xl bg-sp-surface px-4 py-3 text-sm font-medium text-sp-muted transition hover:text-white"
+                            >
+                                Sort
+                            </button>
+                        </div>
+
+                        {/* Contact label */}
+                        <p className="mb-3 mt-8 text-xs font-semibold uppercase tracking-wider text-sp-muted">
                             Contacts
                         </p>
 
-                        <div>
-                            {contacts.map((contact) => (
-                                <div
-                                    key={contact.id}
-                                    className="border-b border-white/5"
-                                >
-                                    {editingId === contact.id ? (
-                                        <div className="flex gap-3 py-4">
-                                            <input
-                                                type="text"
-                                                value={editingName}
-                                                onChange={(e) =>
-                                                    setEditingName(e.target.value)
-                                                }
-                                                className="min-w-0 flex-1 rounded-xl bg-sp-surface px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-sp-primary"
-                                            />
-
-                                            <button
-                                                onClick={() =>
-                                                    handleUpdate(contact.id)
-                                                }
-                                                disabled={submitting}
-                                                className="rounded-xl bg-sp-success px-4 py-2.5 text-sm font-medium text-sp-bg disabled:opacity-50"
-                                            >
-                                                Save
-                                            </button>
-
-                                            <button
-                                                onClick={() => {
-                                                    setEditingId(null);
-                                                    setEditingName("");
-                                                }}
-                                                className="rounded-xl bg-sp-surface px-4 py-2.5 text-sm text-sp-muted hover:text-white"
-                                            >
-                                                Cancel
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-3 py-4">
-                                            {/* Contact */}
-                                            <Link
-                                                href={`/contacts/${contact.id}`}
-                                                className="flex min-w-0 flex-1 items-center gap-4"
-                                            >
-                                                {/* Initial */}
-                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sp-primary-deep text-sm font-semibold text-white">
-                                                    {contact.name
-                                                        .charAt(0)
-                                                        .toUpperCase()}
-                                                </div>
-
-                                                {/* Name */}
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="truncate text-sm font-medium text-white">
-                                                        {contact.name}
-                                                    </p>
-                                                </div>
-
-                                                {/* Arrow */}
-                                                <span className="text-lg text-sp-muted">
-                                                    →
-                                                </span>
-                                            </Link>
-
-                                            {/* Actions */}
-                                            <div className="flex shrink-0 items-center gap-3">
-                                                <button
-                                                    onClick={() => {
-                                                        setEditingId(contact.id);
-                                                        setEditingName(contact.name);
-                                                    }}
-                                                    className="text-xs text-sp-primary hover:text-white"
-                                                >
-                                                    Edit
-                                                </button>
+                        {displayedContacts.length === 0 ? (
+                            <p className="py-6 text-sm text-sp-muted">
+                                No contacts found.
+                            </p>
+                        ) : (
+                            <div>
+                                {displayedContacts.map((contact) => (
+                                    <div
+                                        key={contact.id}
+                                        className="border-b border-white/5"
+                                    >
+                                        {editingId === contact.id ? (
+                                            <div className="flex gap-3 py-4">
+                                                <input
+                                                    type="text"
+                                                    value={editingName}
+                                                    onChange={(e) =>
+                                                        setEditingName(e.target.value)
+                                                    }
+                                                    className="min-w-0 flex-1 rounded-xl bg-sp-surface px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-sp-primary"
+                                                />
 
                                                 <button
                                                     onClick={() =>
-                                                        handleDelete(contact.id)
+                                                        handleUpdate(contact.id)
                                                     }
-                                                    className="text-xs text-red-400 hover:text-red-300"
+                                                    disabled={submitting}
+                                                    className="rounded-xl bg-sp-success px-4 py-2.5 text-sm font-medium text-sp-bg disabled:opacity-50"
                                                 >
-                                                    Delete
+                                                    Save
+                                                </button>
+
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingId(null);
+                                                        setEditingName("");
+                                                    }}
+                                                    className="rounded-xl bg-sp-surface px-4 py-2.5 text-sm text-sp-muted hover:text-white"
+                                                >
+                                                    Cancel
                                                 </button>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                        ) : (
+                                            <div className="flex items-center gap-3 py-4">
+                                                <Link
+                                                    href={`/contacts/${contact.id}`}
+                                                    className="flex min-w-0 flex-1 items-center gap-4"
+                                                >
+                                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sp-primary-deep text-sm font-semibold text-white">
+                                                        {contact.name
+                                                            .charAt(0)
+                                                            .toUpperCase()}
+                                                    </div>
+
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="truncate text-sm font-medium text-white">
+                                                            {contact.name}
+                                                        </p>
+                                                    </div>
+
+                                                    <span className="text-lg text-sp-muted">
+                                                        →
+                                                    </span>
+                                                </Link>
+
+                                                <div className="flex shrink-0 items-center gap-3">
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingId(contact.id);
+                                                            setEditingName(contact.name);
+                                                        }}
+                                                        className="text-xs text-sp-primary hover:text-white"
+                                                    >
+                                                        Edit
+                                                    </button>
+
+                                                    <button
+                                                        onClick={() =>
+                                                            handleDelete(contact.id)
+                                                        }
+                                                        className="text-xs text-red-400 hover:text-red-300"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+                {showSort && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+                        <div className="absolute inset-x-0 bottom-0 rounded-t-[28px] bg-sp-bg p-5 shadow-2xl">
+                            <div className="mb-5 flex items-center justify-between">
+                                <h2 className="text-lg font-semibold text-white">
+                                    Sort contacts
+                                </h2>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSort(false)}
+                                    className="text-sp-muted transition hover:text-white"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            <div className="space-y-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSortBy("az");
+                                        setShowSort(false);
+                                    }}
+                                    className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm transition ${sortBy === "az"
+                                        ? "bg-sp-primary text-white"
+                                        : "bg-sp-surface text-sp-muted hover:text-white"
+                                        }`}
+                                >
+                                    <span>Name: A → Z</span>
+                                    {sortBy === "az" && <span>✓</span>}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSortBy("za");
+                                        setShowSort(false);
+                                    }}
+                                    className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm transition ${sortBy === "za"
+                                        ? "bg-sp-primary text-white"
+                                        : "bg-sp-surface text-sp-muted hover:text-white"
+                                        }`}
+                                >
+                                    <span>Name: Z → A</span>
+                                    {sortBy === "za" && <span>✓</span>}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
-                <FAB
-                    label="Create contact"
-                    onClick={() => setShowCreateModal(true)}
-                />
             </div>
+            <FAB
+                label="Create contact"
+                onClick={() => setShowCreateModal(true)}
+            />
         </main>
     );
 }
