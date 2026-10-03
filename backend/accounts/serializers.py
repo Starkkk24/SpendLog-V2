@@ -190,6 +190,9 @@ class TransactionSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         splits_data = validated_data.pop("splits")
 
+        payer_user = validated_data.get("payer_user")
+        payer_contact = validated_data.get("payer_contact")
+
         with transaction.atomic():
             transaction_obj = Transaction.objects.create(
                 **validated_data
@@ -198,6 +201,11 @@ class TransactionSerializer(serializers.ModelSerializer):
             TransactionSplit.objects.bulk_create([
                 TransactionSplit(
                     transaction=transaction_obj,
+                    settled=bool(
+                        (payer_user and split_data.get("user") == payer_user)
+                        or
+                        (payer_contact and split_data.get("contact") == payer_contact)
+                    ),
                     **split_data
                 )
                 for split_data in splits_data
