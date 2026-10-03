@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000/",
+    baseURL: "http://10.177.227.10:8000/",
 });
 
 // Runs before every request
