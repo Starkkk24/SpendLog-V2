@@ -10,3 +10,11 @@ export async function getBalance(
 
     return response.data;
 }
+
+export async function getProfileBalance() {
+    const response = await api.get(
+        `/profile/balance/`
+    );
+
+    return response.data;
+}

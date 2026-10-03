@@ -287,6 +287,41 @@ def balance_view(request, pk):
         "transactions": transactions,
     })
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def profile_balance_view(request):
+
+    user = request.user
+    profile_balance = 0
+    lend = 0
+    borrow = 0
+
+    unsettled_splits = TransactionSplit.objects.filter(
+        settled=False
+    ).filter(
+        Q(transaction__payer_user=user, contact__isnull=False)
+        |
+        Q(transaction__payer_contact__owner=user, user=user)
+    )
+
+    for split in unsettled_splits:
+        transaction = split.transaction
+
+        if transaction.payer_user == user:
+            profile_balance += split.amount
+            lend += split.amount
+
+        elif transaction.payer_contact is not None:
+            profile_balance -= split.amount
+            borrow -= split.amount
+
+    return Response({
+        "profile_balance": profile_balance,
+        "lend": lend,
+        "borrow": borrow,
+    })
+
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def settle_split_view(request, pk):
@@ -351,3 +386,4 @@ def settle_split_view(request, pk):
         "split_id": split.id,
         "settled": split.settled,
     })
+
