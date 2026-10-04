@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "http://10.177.227.10:8000/",
+    baseURL: process.env.NEXT_PUBLIC_API_URL,
 });
 
 // Runs before every request
@@ -40,7 +40,7 @@ api.interceptors.response.use(
             try {
                 // Use plain axios here, NOT api
                 const response = await axios.post(
-                    "http://127.0.0.1:8000/refresh/",
+                    `${process.env.NEXT_PUBLIC_API_URL}/refresh/`,
                     {
                         refresh,
                     }
