@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth.models import User
-from django.db.models import Q
+from django.db.models import Q, F
+from decimal import Decimal
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -202,18 +203,13 @@ def balance_view(request, pk):
         owner=user
     )
 
-
-    transactions = []
-
     settled_param = request.query_params.get("settled", "false")
     show_settled = settled_param.lower() == "true"
 
     balance = 0
 
-    # 1. Calculate balance ONLY from unsettled splits
-    unsettled_splits = TransactionSplit.objects.filter(
-        settled=False
-    ).filter(
+    # 1. Get all relevant splits
+    relevant_splits = TransactionSplit.objects.filter(
         Q(
             transaction__payer_user=user,
             contact=contact
@@ -225,51 +221,55 @@ def balance_view(request, pk):
         )
     )
 
-    for split in unsettled_splits:
+    # 2. Calculate current balance using remaining amounts
+    for split in relevant_splits:
+
         transaction = split.transaction
+        remaining_amount = split.amount - split.settled_amount
+
+        if remaining_amount <= 0:
+            continue
 
         if transaction.payer_user == user:
-            balance += split.amount
+            balance += remaining_amount
 
         elif transaction.payer_contact == contact:
-            balance -= split.amount
+            balance -= remaining_amount
 
+    # 3. Get transactions according to selected tab
+    if show_settled:
+        splits = relevant_splits.filter(
+            settled_amount__gt=0
+        )
+    else:
+        splits = relevant_splits.filter(
+            settled_amount__lt=F("amount")
+        )
 
-    # 2. Get transactions according to selected tab
-    splits = TransactionSplit.objects.filter(
-        settled=show_settled
-    ).filter(
-        Q(
-            transaction__payer_user=user,
-            contact=contact
-        )
-        |
-        Q(
-            transaction__payer_contact=contact,
-            user=user
-        )
-    ).select_related(
+    splits = splits.select_related(
         "transaction",
         "transaction__payer_user",
         "transaction__payer_contact"
     )
 
-
-    # 3. Build transaction display data
+    # 4. Build transaction display data
     transactions = []
 
     for split in splits:
 
         transaction = split.transaction
-
+    
+        remaining_amount = split.amount - split.settled_amount
+        is_settled = split.settled_amount == split.amount
+    
         if transaction.payer_user == user:
             amount = split.amount
             paid_by = user.username
-
+    
         elif transaction.payer_contact == contact:
             amount = -split.amount
             paid_by = contact.name
-
+    
         transactions.append({
             "id": transaction.id,
             "split_id": split.id,
@@ -277,7 +277,9 @@ def balance_view(request, pk):
             "date": transaction.transaction_datetime,
             "paid_by": paid_by,
             "note": transaction.note,
-            "settled": split.settled,
+            "settled_amount": split.settled_amount,
+            "remaining_amount": remaining_amount,
+            "settled": is_settled,
         })
 
     return Response({
@@ -292,28 +294,33 @@ def balance_view(request, pk):
 def profile_balance_view(request):
 
     user = request.user
+
     profile_balance = 0
     lend = 0
     borrow = 0
 
-    unsettled_splits = TransactionSplit.objects.filter(
-        settled=False
-    ).filter(
+    relevant_splits = TransactionSplit.objects.filter(
         Q(transaction__payer_user=user, contact__isnull=False)
         |
         Q(transaction__payer_contact__owner=user, user=user)
     )
 
-    for split in unsettled_splits:
+    for split in relevant_splits:
+
         transaction = split.transaction
+        remaining_amount = split.amount - split.settled_amount
+
+        if remaining_amount <= 0:
+            continue
+
 
         if transaction.payer_user == user:
-            profile_balance += split.amount
-            lend += split.amount
+            profile_balance += remaining_amount
+            lend += remaining_amount
 
         elif transaction.payer_contact is not None:
-            profile_balance -= split.amount
-            borrow -= split.amount
+            profile_balance -= remaining_amount
+            borrow += remaining_amount
 
     return Response({
         "profile_balance": profile_balance,
@@ -324,7 +331,7 @@ def profile_balance_view(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def settle_split_view(request, pk):
+def settle_split_view(request, split_id):
 
     user = request.user
 
@@ -335,7 +342,8 @@ def settle_split_view(request, pk):
             "user",
             "transaction__payer_user",
             "transaction__payer_contact",
-        ).get(id=pk)
+        ).get(id=split_id)
+
     except TransactionSplit.DoesNotExist:
         return Response(
             {"error": "Split not found."},
@@ -344,8 +352,7 @@ def settle_split_view(request, pk):
 
     transaction = split.transaction
 
-    # Check that this split belongs to a transaction
-    # involving the current user and their contact.
+    # Authorization
     valid = (
         transaction.payer_user == user
         and split.contact is not None
@@ -356,34 +363,115 @@ def settle_split_view(request, pk):
         and split.user == user
     )
 
-    # print("CURRENT USER:", user.id, user.username)
-    # print("PAYER USER:", transaction.payer_user_id)
-    # print("PAYER CONTACT:", transaction.payer_contact_id)
-    # print("SPLIT USER:", split.user_id)
-    # print("SPLIT CONTACT:", split.contact_id)
-
     if not valid:
         return Response(
             {"error": "You are not authorized to settle this split."},
             status=403
         )
 
-    # print("========== SETTLEMENT DEBUG ==========")
-    # print("CURRENT USER:", user.id, user.username)
-    # print("TRANSACTION:", split.transaction_id)
-    # print("PAYER USER:", split.transaction.payer_user_id)
-    # print("PAYER CONTACT:", split.transaction.payer_contact_id)
-    # print("SPLIT USER:", split.user_id)
-    # print("SPLIT CONTACT:", split.contact_id)
-    # print("CONTACT OWNER:", split.contact.owner_id if split.contact else None)
-    # print("SETTLED:", split.settled)
-    # print("======================================")
-    split.settled = not split.settled
-    split.save(update_fields=["settled"])
+    remaining_amount = split.amount - split.settled_amount
+
+    if remaining_amount <= 0:
+        return Response(
+            {"error": "This split is already fully settled."},
+            status=400
+        )
+
+    complete = request.data.get("complete", False)
+
+    if complete:
+        split.settled_amount = split.amount
+
+    else:
+        amount = request.data.get("amount")
+
+        if amount is None:
+            return Response(
+                {"error": "Settlement amount is required."},
+                status=400
+            )
+
+        try:
+            amount = Decimal(str(amount))
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Invalid settlement amount."},
+                status=400
+            )
+
+        if amount <= 0:
+            return Response(
+                {"error": "Settlement amount must be greater than zero."},
+                status=400
+            )
+
+        if amount > remaining_amount:
+            return Response(
+                {"error": "Settlement amount cannot exceed the remaining amount."},
+                status=400
+            )
+
+        split.settled_amount += amount
+
+    split.save(update_fields=["settled_amount"])
 
     return Response({
         "message": "Split settled successfully.",
         "split_id": split.id,
-        "settled": split.settled,
+        "amount": split.amount,
+        "settled_amount": split.settled_amount,
+        "remaining_amount": split.amount - split.settled_amount,
+        "settled": split.settled_amount == split.amount,
     })
 
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def unsettle_split_view(request, split_id):
+
+    user = request.user
+
+    try:
+        split = TransactionSplit.objects.select_related(
+            "transaction",
+            "contact",
+            "user",
+            "transaction__payer_user",
+            "transaction__payer_contact",
+        ).get(id=split_id)
+
+    except TransactionSplit.DoesNotExist:
+        return Response(
+            {"error": "Split not found."},
+            status=404
+        )
+
+    transaction = split.transaction
+
+    # Authorization
+    valid = (
+        transaction.payer_user == user
+        and split.contact is not None
+        and split.contact.owner == user
+    ) or (
+        transaction.payer_contact is not None
+        and transaction.payer_contact.owner == user
+        and split.user == user
+    )
+
+    if not valid:
+        return Response(
+            {"error": "You are not authorized to unsettle this split."},
+            status=403
+        )
+
+    split.settled_amount = 0
+    split.save(update_fields=["settled_amount"])
+
+    return Response({
+        "message": "Split unsettled successfully.",
+        "split_id": split.id,
+        "amount": split.amount,
+        "settled_amount": split.settled_amount,
+        "remaining_amount": split.amount,
+        "settled": False,
+    })

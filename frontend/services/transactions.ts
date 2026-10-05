@@ -1,9 +1,40 @@
 import api from "@/lib/api";
 
 
-export async function settleSplit(splitId: number) {
+export async function settleSplit(
+    splitId: number,
+    amount: number
+) {
     const response = await api.post(
-        `/transaction-splits/${splitId}/settle/`
+        `/transaction-splits/${splitId}/settle/`,
+        {
+            amount,
+        }
+    );
+
+    return response.data;
+}
+
+
+export async function settleSplitCompletely(
+    splitId: number
+) {
+    const response = await api.post(
+        `/transaction-splits/${splitId}/settle/`,
+        {
+            complete: true,
+        }
+    );
+
+    return response.data;
+}
+
+
+export async function unsettleSplit(
+    splitId: number
+) {
+    const response = await api.post(
+        `/transaction-splits/${splitId}/unsettle/`
     );
 
     return response.data;

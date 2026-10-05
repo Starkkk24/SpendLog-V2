@@ -41,6 +41,9 @@ class TransactionSplitSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField()
     contact_name = serializers.SerializerMethodField()
 
+    remaining_amount = serializers.SerializerMethodField()
+    settled = serializers.SerializerMethodField()
+
     class Meta:
         model = TransactionSplit
         fields = [
@@ -50,6 +53,15 @@ class TransactionSplitSerializer(serializers.ModelSerializer):
             "contact",
             "contact_name",
             "amount",
+            "settled_amount",
+            "remaining_amount",
+            "settled",
+        ]
+
+        read_only_fields = [
+            "id",
+            "settled_amount",
+            "remaining_amount",
             "settled",
         ]
 
@@ -58,6 +70,12 @@ class TransactionSplitSerializer(serializers.ModelSerializer):
 
     def get_contact_name(self, obj):
         return obj.contact.name if obj.contact else None
+
+    def get_remaining_amount(self, obj):
+        return obj.amount - obj.settled_amount
+
+    def get_settled(self, obj):
+        return obj.settled_amount == obj.amount
 
 
 class TransactionSerializer(serializers.ModelSerializer):
@@ -86,11 +104,10 @@ class TransactionSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def get_remaining_amount(self, obj):
-        return obj.splits.filter(
-            settled=False
-        ).aggregate(
-            total=Sum("amount")
-        )["total"] or 0
+        return sum(
+            split.amount - split.settled_amount
+            for split in obj.splits.all()
+        )
 
     def get_payer_user_name(self, obj):
         return obj.payer_user.username if obj.payer_user else None
@@ -201,11 +218,13 @@ class TransactionSerializer(serializers.ModelSerializer):
             TransactionSplit.objects.bulk_create([
                 TransactionSplit(
                     transaction=transaction_obj,
-                    settled=bool(
-                        (payer_user and split_data.get("user") == payer_user)
+                    settled_amount=split_data["amount"]
+                    if (
+                        (payer_user is not None and split_data.get("user") == payer_user)
                         or
-                        (payer_contact and split_data.get("contact") == payer_contact)
-                    ),
+                        (payer_contact is not None and split_data.get("contact") == payer_contact)
+                    )
+                    else 0,
                     **split_data
                 )
                 for split_data in splits_data
@@ -215,25 +234,83 @@ class TransactionSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         splits_data = validated_data.pop("splits", None)
-
+    
         with transaction.atomic():
-
-            # Update transaction fields
+        
+            # Update transaction-level fields
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
-
+    
             instance.save()
-
-            # If splits were supplied, replace the existing splits
+    
             if splits_data is not None:
-                instance.splits.all().delete()
-
-                TransactionSplit.objects.bulk_create([
-                    TransactionSplit(
-                        transaction=instance,
-                        **split_data
+            
+                existing_splits = {
+                    (
+                        "user", split.user_id
+                    ) if split.user_id else (
+                        "contact", split.contact_id
+                    ): split
+                    for split in instance.splits.all()
+                }
+    
+                incoming_keys = set()
+    
+                for split_data in splits_data:
+                
+                    split_user = split_data.get("user")
+                    split_contact = split_data.get("contact")
+    
+                    key = (
+                        ("user", split_user.id)
+                        if split_user
+                        else ("contact", split_contact.id)
                     )
-                    for split_data in splits_data
-                ])
-
+    
+                    incoming_keys.add(key)
+    
+                    existing_split = existing_splits.get(key)
+    
+                    # New participant
+                    if existing_split is None:
+                        TransactionSplit.objects.create(
+                            transaction=instance,
+                            settled_amount=0,
+                            **split_data
+                        )
+                        continue
+                    
+                    # Existing split with settlement activity
+                    if existing_split.settled_amount > 0:
+                    
+                        if split_data["amount"] != existing_split.amount:
+                            raise serializers.ValidationError({
+                                "splits": (
+                                    f"Amount for an already-settled participant "
+                                    f"cannot be changed."
+                                )
+                            })
+    
+                        # Keep existing settlement state.
+                        continue
+                    
+                    # Existing split with no settlement activity
+                    existing_split.amount = split_data["amount"]
+                    existing_split.save(update_fields=["amount"])
+    
+                # Remove participants that are no longer present
+                for key, existing_split in existing_splits.items():
+                
+                    if key not in incoming_keys:
+                    
+                        if existing_split.settled_amount > 0:
+                            raise serializers.ValidationError({
+                                "splits": (
+                                    "A participant with settlement activity "
+                                    "cannot be removed."
+                                )
+                            })
+    
+                        existing_split.delete()
+    
         return instance

@@ -86,8 +86,10 @@ class TransactionSplit(models.Model):
         decimal_places=2
     )
 
-    settled = models.BooleanField(
-        default=False
+    settled_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
     )
 
     class Meta:
