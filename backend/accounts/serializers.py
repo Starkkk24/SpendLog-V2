@@ -118,25 +118,32 @@ class TransactionSerializer(serializers.ModelSerializer):
     def validate(self, data):
         user = self.context["request"].user
 
-        payer_user = data.get("payer_user")
-        payer_contact = data.get("payer_contact")
+        payer_fields_submitted = (
+            "payer_user" in data or "payer_contact" in data
+        )
+
+        if self.instance and not payer_fields_submitted:
+            payer_user = self.instance.payer_user
+            payer_contact = self.instance.payer_contact
+        else:
+            payer_user = data.get("payer_user")
+            payer_contact = data.get("payer_contact")
+
         splits = data.get("splits")
 
         if splits is None and self.instance:
-            splits = list(
-                self.instance.splits.all().values(
-                    "user",
-                    "contact",
-                    "amount"
-                )
-            )
+            splits = self.instance.splits.all()
         else:
             splits = splits or []
-        
-        total_amount = data.get(
-            "total_amount",
-            self.instance.total_amount if self.instance else None
-        )
+
+        if "total_amount" in data:
+            total_amount = data["total_amount"]
+        elif self.instance:
+            total_amount = self.instance.total_amount
+        else:
+            raise serializers.ValidationError({
+                "total_amount": "This field is required."
+            })
 
         # Exactly one payer
         if bool(payer_user) == bool(payer_contact):
@@ -160,8 +167,14 @@ class TransactionSerializer(serializers.ModelSerializer):
         participants = set()
 
         for split in splits:
-            split_user = split.get("user")
-            split_contact = split.get("contact")
+            if isinstance(split, TransactionSplit):
+                split_user = split.user
+                split_contact = split.contact
+                split_amount = split.amount
+            else:
+                split_user = split.get("user")
+                split_contact = split.get("contact")
+                split_amount = split["amount"]
 
             # Exactly one participant
             if bool(split_user) == bool(split_contact):
@@ -194,7 +207,18 @@ class TransactionSerializer(serializers.ModelSerializer):
                 })
 
             participants.add(participant_key)
-            split_total += split["amount"]
+            split_total += split_amount
+
+        payer_key = (
+            f"user:{payer_user.id}"
+            if payer_user
+            else f"contact:{payer_contact.id}"
+        )
+
+        if payer_key not in participants:
+            raise serializers.ValidationError({
+                "splits": "The payer must appear exactly once in the splits."
+            })
 
         # Split total must equal transaction total
         if split_total != total_amount:
@@ -234,83 +258,233 @@ class TransactionSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         splits_data = validated_data.pop("splits", None)
-    
+
+        payer_fields_submitted = (
+            "payer_user" in validated_data
+            or "payer_contact" in validated_data
+        )
+
+        original_payer_key = (
+            ("user", instance.payer_user_id)
+            if instance.payer_user_id
+            else ("contact", instance.payer_contact_id)
+        )
+
+        if payer_fields_submitted:
+            new_payer_user = validated_data.get("payer_user")
+            new_payer_contact = validated_data.get("payer_contact")
+        else:
+            new_payer_user = instance.payer_user
+            new_payer_contact = instance.payer_contact
+
+        new_payer_key = (
+            ("user", new_payer_user.id)
+            if new_payer_user
+            else ("contact", new_payer_contact.id)
+        )
+
+        payer_changed = new_payer_key != original_payer_key
+
+        total_amount_changed = (
+            "total_amount" in validated_data
+            and validated_data["total_amount"] != instance.total_amount
+        )
+
         with transaction.atomic():
-        
-            # Update transaction-level fields
-            for attr, value in validated_data.items():
-                setattr(instance, attr, value)
-    
-            instance.save()
-    
-            if splits_data is not None:
-            
-                existing_splits = {
-                    (
-                        "user", split.user_id
-                    ) if split.user_id else (
-                        "contact", split.contact_id
-                    ): split
-                    for split in instance.splits.all()
-                }
-    
-                incoming_keys = set()
-    
-                for split_data in splits_data:
-                
-                    split_user = split_data.get("user")
-                    split_contact = split_data.get("contact")
-    
-                    key = (
-                        ("user", split_user.id)
-                        if split_user
-                        else ("contact", split_contact.id)
+
+            existing_splits = {
+                (
+                    ("user", split.user_id)
+                    if split.user_id
+                    else ("contact", split.contact_id)
+                ): split
+                for split in instance.splits.all()
+            }
+
+            # The payer's automatic settlement does NOT count
+            # as real settlement activity.
+            real_settlement_exists = any(
+                split.settled_amount > 0
+                and key != original_payer_key
+                for key, split in existing_splits.items()
+            )
+
+            # ---------------------------------------------------------
+            # Transaction-level locks
+            # ---------------------------------------------------------
+
+            if real_settlement_exists and total_amount_changed:
+                raise serializers.ValidationError({
+                    "total_amount": (
+                        "The transaction total cannot be changed after "
+                        "settlement activity."
                     )
-    
-                    incoming_keys.add(key)
-    
-                    existing_split = existing_splits.get(key)
-    
-                    # New participant
-                    if existing_split is None:
-                        TransactionSplit.objects.create(
-                            transaction=instance,
-                            settled_amount=0,
-                            **split_data
-                        )
-                        continue
-                    
-                    # Existing split with settlement activity
-                    if existing_split.settled_amount > 0:
-                    
-                        if split_data["amount"] != existing_split.amount:
-                            raise serializers.ValidationError({
-                                "splits": (
-                                    f"Amount for an already-settled participant "
-                                    f"cannot be changed."
-                                )
-                            })
-    
-                        # Keep existing settlement state.
-                        continue
-                    
-                    # Existing split with no settlement activity
-                    existing_split.amount = split_data["amount"]
-                    existing_split.save(update_fields=["amount"])
-    
-                # Remove participants that are no longer present
+                })
+
+            if real_settlement_exists and payer_changed:
+                raise serializers.ValidationError({
+                    "payer": (
+                        "The payer cannot be changed after settlement activity."
+                    )
+                })
+
+            # ---------------------------------------------------------
+            # Build incoming split map
+            # ---------------------------------------------------------
+
+            incoming_splits = {}
+
+            if splits_data is not None:
+                incoming_splits = {
+                    (
+                        ("user", split_data["user"].id)
+                        if split_data.get("user")
+                        else ("contact", split_data["contact"].id)
+                    ): split_data
+                    for split_data in splits_data
+                }
+
+                # New payer must be present.
+                if payer_changed and new_payer_key not in incoming_splits:
+                    raise serializers.ValidationError({
+                        "splits": "The new payer must appear in the splits."
+                    })
+
+                # -----------------------------------------------------
+                # Validate existing settled non-payer splits
+                # -----------------------------------------------------
+
                 for key, existing_split in existing_splits.items():
-                
-                    if key not in incoming_keys:
-                    
-                        if existing_split.settled_amount > 0:
+
+                    # Old payer is specially handled during payer change.
+                    if payer_changed and key == original_payer_key:
+                        continue
+
+                    if existing_split.settled_amount > 0:
+                        incoming_split = incoming_splits.get(key)
+
+                        if incoming_split is None:
                             raise serializers.ValidationError({
                                 "splits": (
                                     "A participant with settlement activity "
                                     "cannot be removed."
                                 )
                             })
-    
-                        existing_split.delete()
-    
-        return instance
+
+                            raise serializers.ValidationError({
+                                "splits": (
+                                    f"Amount for an already-settled participant cannot be changed. "
+                                    f"Participant: {key}, "
+                                    f"existing amount: {existing_split.amount}, "
+                                    f"incoming amount: {incoming_split['amount']}"
+                                )
+                            })
+
+                # -----------------------------------------------------
+                # Payer amount remains editable.
+                #
+                # Even if another participant has settlement activity,
+                # the payer's automatically-settled split is NOT locked.
+                # -----------------------------------------------------
+
+            # ---------------------------------------------------------
+            # Update transaction fields
+            # ---------------------------------------------------------
+
+            for attr, value in validated_data.items():
+                if attr not in ("payer_user", "payer_contact"):
+                    setattr(instance, attr, value)
+
+            if payer_fields_submitted:
+                instance.payer_user = new_payer_user
+                instance.payer_contact = new_payer_contact
+
+            instance.save()
+
+            # ---------------------------------------------------------
+            # Reconcile splits
+            # ---------------------------------------------------------
+
+            if splits_data is not None:
+
+                for key, split_data in incoming_splits.items():
+
+                    existing_split = existing_splits.get(key)
+
+                    # -------------------------------------------------
+                    # New participant
+                    # -------------------------------------------------
+
+                    if existing_split is None:
+                        TransactionSplit.objects.create(
+                            transaction=instance,
+                            settled_amount=(
+                                split_data["amount"]
+                                if key == new_payer_key
+                                else 0
+                            ),
+                            **split_data
+                        )
+                        continue
+
+                    # -------------------------------------------------
+                    # Old payer -> normal splittie
+                    #
+                    # This is the special payer-change transition.
+                    # The old payer keeps the same participant identity
+                    # and amount, but loses the automatic settlement.
+                    # -------------------------------------------------
+
+                    if payer_changed and key == original_payer_key:
+                        existing_split.amount = split_data["amount"]
+                        existing_split.settled_amount = 0
+
+                        existing_split.save(
+                            update_fields=[
+                                "amount",
+                                "settled_amount",
+                            ]
+                        )
+                        continue
+
+                    # -------------------------------------------------
+                    # New payer
+                    #
+                    # Existing participant becoming payer gets automatic
+                    # self-settlement.
+                    # -------------------------------------------------
+
+                    if key == new_payer_key:
+                        existing_split.amount = split_data["amount"]
+                        existing_split.settled_amount = split_data["amount"]
+
+                        existing_split.save(
+                            update_fields=[
+                                "amount",
+                                "settled_amount",
+                            ]
+                        )
+                        continue
+
+                    # -------------------------------------------------
+                    # Normal unsettled participant
+                    # -------------------------------------------------
+
+                    if existing_split.settled_amount == 0:
+                        existing_split.amount = split_data["amount"]
+                        existing_split.save(
+                            update_fields=["amount"]
+                        )
+
+                # -----------------------------------------------------
+                # Remove participants that are no longer present.
+                # Settled participants are already protected above.
+                # -----------------------------------------------------
+
+                for key, existing_split in existing_splits.items():
+
+                    if key not in incoming_splits:
+                        if existing_split.settled_amount == 0:
+                            existing_split.delete()
+
+            return instance

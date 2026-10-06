@@ -189,6 +189,15 @@ export default function TransactionDetailPage() {
                     ← Transactions
                 </button>
 
+                <button
+                    onClick={() =>
+                        router.push(`/transactions/${transaction.id}/edit`)
+                    }
+                    className="ml-4 text-sm font-medium text-sp-primary transition hover:text-white"
+                >
+                    Edit
+                </button>
+
                 {/* Transaction Summary */}
                 <div className="mt-8">
                     <div className="flex items-start justify-between gap-6">
