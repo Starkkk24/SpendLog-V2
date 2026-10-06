@@ -114,6 +114,18 @@ def contact_detail(request, pk):
             return Response(serializer.data, status=200)
         return Response(serializer.errors, status=400)
     elif request.method == "DELETE":
+    
+        if TransactionSplit.objects.filter(contact=contact).exists():
+            return Response(
+                {
+                    "error": (
+                        "This contact cannot be deleted because "
+                        "they are part of existing transactions."
+                    )
+                },
+                status=400
+            )
+    
         contact.delete()
         return Response(status=204)
 

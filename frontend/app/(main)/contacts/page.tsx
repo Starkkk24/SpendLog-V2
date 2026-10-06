@@ -31,6 +31,10 @@ export default function ContactsPage() {
     const [sortBy, setSortBy] = useState<"az" | "za">("az");
     const [showSort, setShowSort] = useState(false);
 
+    const [deleteContactId, setDeleteContactId] = useState<number | null>(null);
+    const [deleteContactName, setDeleteContactName] = useState("");
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+
     async function loadContacts() {
         try {
             const data = await getContacts();
@@ -108,8 +112,12 @@ export default function ContactsPage() {
             setContacts((currentContacts) =>
                 currentContacts.filter((contact) => contact.id !== id)
             );
-        } catch (error) {
-            console.error("Failed to delete contact:", error);
+        } catch (error: any) {
+            const message =
+                error?.response?.data?.error ||
+                "Unable to delete this contact.";
+
+            setDeleteError(message);
         }
     }
 
@@ -314,9 +322,10 @@ export default function ContactsPage() {
                                                     </button>
 
                                                     <button
-                                                        onClick={() =>
-                                                            handleDelete(contact.id)
-                                                        }
+                                                        onClick={() => {
+                                                            setDeleteContactId(contact.id);
+                                                            setDeleteContactName(contact.name);
+                                                        }}
                                                         className="text-xs text-red-400 hover:text-red-300"
                                                     >
                                                         Delete
@@ -386,6 +395,75 @@ export default function ContactsPage() {
                 label="Create contact"
                 onClick={() => setShowCreateModal(true)}
             />
+
+            {deleteContactId !== null && (
+                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+                    <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-sp-card p-5 shadow-2xl">
+                        <h2 className="text-lg font-semibold text-white">
+                            Delete Contact?
+                        </h2>
+
+                        <p className="mt-2 text-sm leading-6 text-sp-muted">
+                            Are you sure you want to delete{" "}
+                            <span className="font-medium text-white">
+                                {deleteContactName}
+                            </span>
+                            ?
+                        </p>
+
+                        <div className="mt-6 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setDeleteContactId(null);
+                                    setDeleteContactName("");
+                                }}
+                                className="flex-1 rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/5"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (deleteContactId === null) return;
+
+                                    const id = deleteContactId;
+
+                                    setDeleteContactId(null);
+                                    setDeleteContactName("");
+
+                                    await handleDelete(id);
+                                }}
+                                className="flex-1 rounded-xl bg-red-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-400"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {deleteError && (
+                <div className="fixed inset-0 z-[310] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+                    <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-sp-card p-5 shadow-2xl">
+                        <h2 className="text-lg font-semibold text-white">
+                            Cannot Delete Contact
+                        </h2>
+
+                        <p className="mt-2 text-sm leading-6 text-sp-muted">
+                            {deleteError}
+                        </p>
+
+                        <button
+                            type="button"
+                            onClick={() => setDeleteError(null)}
+                            className="mt-6 w-full rounded-xl bg-sp-primary px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                        >
+                            OK
+                        </button>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }
