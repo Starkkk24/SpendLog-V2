@@ -107,3 +107,37 @@ class TransactionSplit(models.Model):
     def __str__(self):
         participant = self.user or self.contact
         return f"{participant}: ₹{self.amount}"
+
+class IndividualTransaction(models.Model):
+    DIRECTION_CHOICES = [
+        ("lend", "Lend"),
+        ("borrow", "Borrow"),
+    ]
+
+    contact = models.ForeignKey(
+        Contact,
+        on_delete=models.PROTECT,
+        related_name="individual_transactions"
+    )
+
+    direction = models.CharField(
+        max_length=10,
+        choices=DIRECTION_CHOICES
+    )
+
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2
+    )
+
+    settled_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
+
+    note = models.TextField(blank=True)
+
+    transaction_datetime = models.DateTimeField()
+
+    created_at = models.DateTimeField(auto_now_add=True)

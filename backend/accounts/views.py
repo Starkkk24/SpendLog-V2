@@ -13,8 +13,8 @@ from rest_framework.response import Response
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Contact, Transaction, TransactionSplit
-from .serializers import ContactSerializer, SignupSerializer, TransactionSerializer
+from .models import Contact, Transaction, TransactionSplit, IndividualTransaction
+from .serializers import ContactSerializer, SignupSerializer, TransactionSerializer, IndividualTransactionSerializer
 
 from django.shortcuts import get_object_or_404
 
@@ -220,7 +220,7 @@ def balance_view(request, pk):
 
     balance = 0
 
-    # 1. Get all relevant splits
+    # 1. Get all relevant expense splits
     relevant_splits = TransactionSplit.objects.filter(
         Q(
             transaction__payer_user=user,
@@ -233,7 +233,7 @@ def balance_view(request, pk):
         )
     )
 
-    # 2. Calculate current balance using remaining amounts
+    # 2. Calculate expense balance
     for split in relevant_splits:
 
         transaction = split.transaction
@@ -248,7 +248,29 @@ def balance_view(request, pk):
         elif transaction.payer_contact == contact:
             balance -= remaining_amount
 
-    # 3. Get transactions according to selected tab
+    # 3. Get all individual transactions
+    all_individual_transactions = IndividualTransaction.objects.filter(
+        contact=contact
+    )
+
+    # 4. Calculate individual transaction balance
+    for individual_transaction in all_individual_transactions:
+
+        remaining_amount = (
+            individual_transaction.amount
+            - individual_transaction.settled_amount
+        )
+
+        if remaining_amount <= 0:
+            continue
+
+        if individual_transaction.direction == "lend":
+            balance += remaining_amount
+
+        elif individual_transaction.direction == "borrow":
+            balance -= remaining_amount
+
+    # 5. Filter expense splits for selected tab
     if show_settled:
         splits = relevant_splits.filter(
             settled_amount__gt=0
@@ -264,27 +286,44 @@ def balance_view(request, pk):
         "transaction__payer_contact"
     )
 
-    # 4. Build transaction display data
+    # 6. Filter individual transactions for selected tab
+    if show_settled:
+        individual_transactions = all_individual_transactions.filter(
+            settled_amount__gt=0
+        )
+    else:
+        individual_transactions = all_individual_transactions.filter(
+            settled_amount__lt=F("amount")
+        )
+
+    # 7. Build combined transaction display data
     transactions = []
 
+    # Existing expense transactions
     for split in splits:
 
         transaction = split.transaction
-    
-        remaining_amount = split.amount - split.settled_amount
-        is_settled = split.settled_amount == split.amount
-    
+
+        remaining_amount = (
+            split.amount - split.settled_amount
+        )
+
+        is_settled = (
+            split.settled_amount == split.amount
+        )
+
         if transaction.payer_user == user:
             amount = split.amount
             paid_by = user.username
-    
+
         elif transaction.payer_contact == contact:
             amount = -split.amount
             paid_by = contact.name
-    
+
         transactions.append({
             "id": transaction.id,
             "split_id": split.id,
+            "type": "expense",
             "amount": amount,
             "date": transaction.transaction_datetime,
             "paid_by": paid_by,
@@ -293,6 +332,47 @@ def balance_view(request, pk):
             "remaining_amount": remaining_amount,
             "settled": is_settled,
         })
+
+    # Individual lend/borrow transactions
+    for individual_transaction in individual_transactions:
+
+        remaining_amount = (
+            individual_transaction.amount
+            - individual_transaction.settled_amount
+        )
+
+        is_settled = (
+            individual_transaction.settled_amount
+            == individual_transaction.amount
+        )
+
+        if individual_transaction.direction == "lend":
+            amount = individual_transaction.amount
+            paid_by = user.username
+
+        else:
+            amount = -individual_transaction.amount
+            paid_by = contact.name
+
+        transactions.append({
+            "id": individual_transaction.id,
+            "individual_transaction_id": individual_transaction.id,
+            "type": "individual",
+            "direction": individual_transaction.direction,
+            "amount": amount,
+            "date": individual_transaction.transaction_datetime,
+            "paid_by": paid_by,
+            "note": individual_transaction.note,
+            "settled_amount": individual_transaction.settled_amount,
+            "remaining_amount": remaining_amount,
+            "settled": is_settled,
+        })
+
+    # 8. Sort combined transactions newest first
+    transactions.sort(
+        key=lambda transaction: transaction["date"],
+        reverse=True
+    )
 
     return Response({
         "contact_id": contact.id,
@@ -485,5 +565,210 @@ def unsettle_split_view(request, split_id):
         "amount": split.amount,
         "settled_amount": split.settled_amount,
         "remaining_amount": split.amount,
+        "settled": False,
+    })
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def individual_transaction_list(request, contact_id):
+
+    user = request.user
+
+    try:
+        contact = Contact.objects.get(
+            id=contact_id,
+            owner=user
+        )
+    except Contact.DoesNotExist:
+        return Response(
+            {"error": "Contact not found."},
+            status=404
+        )
+
+    if request.method == "GET":
+
+        transactions = IndividualTransaction.objects.filter(
+            contact=contact
+        ).order_by(
+            "-transaction_datetime",
+            "-created_at"
+        )
+
+        serializer = IndividualTransactionSerializer(
+            transactions,
+            many=True,
+            context={
+                "request": request,
+                "contact": contact,
+            }
+        )
+
+        return Response(serializer.data)
+
+    serializer = IndividualTransactionSerializer(
+        data=request.data,
+        context={
+            "request": request,
+            "contact": contact,
+        }
+    )
+
+    if serializer.is_valid():
+
+        individual_transaction = serializer.save(
+            contact=contact
+        )
+
+        return Response(
+            IndividualTransactionSerializer(
+                individual_transaction,
+                context={
+                    "request": request,
+                    "contact": contact,
+                }
+            ).data,
+            status=201
+        )
+
+    print(
+        "INDIVIDUAL TRANSACTION ERRORS:",
+        serializer.errors
+    )
+
+    return Response(
+        serializer.errors,
+        status=400
+    )
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def settle_individual_transaction_view(request, transaction_id):
+
+    user = request.user
+
+    try:
+        individual_transaction = (
+            IndividualTransaction.objects
+            .select_related("contact")
+            .get(
+                id=transaction_id,
+                contact__owner=user
+            )
+        )
+
+    except IndividualTransaction.DoesNotExist:
+        return Response(
+            {"error": "Individual transaction not found."},
+            status=404
+        )
+
+    remaining_amount = (
+        individual_transaction.amount
+        - individual_transaction.settled_amount
+    )
+
+    if remaining_amount <= 0:
+        return Response(
+            {"error": "This transaction is already fully settled."},
+            status=400
+        )
+
+    complete = request.data.get("complete", False)
+
+    if complete:
+        individual_transaction.settled_amount = (
+            individual_transaction.amount
+        )
+
+    else:
+        amount = request.data.get("amount")
+
+        if amount is None:
+            return Response(
+                {"error": "Settlement amount is required."},
+                status=400
+            )
+
+        try:
+            amount = Decimal(str(amount))
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Invalid settlement amount."},
+                status=400
+            )
+
+        if amount <= 0:
+            return Response(
+                {"error": "Settlement amount must be greater than zero."},
+                status=400
+            )
+
+        if amount > remaining_amount:
+            return Response(
+                {
+                    "error": (
+                        "Settlement amount cannot exceed "
+                        "the remaining amount."
+                    )
+                },
+                status=400
+            )
+
+        individual_transaction.settled_amount += amount
+
+    individual_transaction.save(
+        update_fields=["settled_amount"]
+    )
+
+    return Response({
+        "message": "Individual transaction settled successfully.",
+        "transaction_id": individual_transaction.id,
+        "amount": individual_transaction.amount,
+        "settled_amount": individual_transaction.settled_amount,
+        "remaining_amount": (
+            individual_transaction.amount
+            - individual_transaction.settled_amount
+        ),
+        "settled": (
+            individual_transaction.settled_amount
+            == individual_transaction.amount
+        ),
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def unsettle_individual_transaction_view(request, transaction_id):
+
+    user = request.user
+
+    try:
+        individual_transaction = (
+            IndividualTransaction.objects
+            .select_related("contact")
+            .get(
+                id=transaction_id,
+                contact__owner=user
+            )
+        )
+
+    except IndividualTransaction.DoesNotExist:
+        return Response(
+            {"error": "Individual transaction not found."},
+            status=404
+        )
+
+    individual_transaction.settled_amount = 0
+
+    individual_transaction.save(
+        update_fields=["settled_amount"]
+    )
+
+    return Response({
+        "message": "Individual transaction unsettled successfully.",
+        "transaction_id": individual_transaction.id,
+        "amount": individual_transaction.amount,
+        "settled_amount": 0,
+        "remaining_amount": individual_transaction.amount,
         "settled": False,
     })

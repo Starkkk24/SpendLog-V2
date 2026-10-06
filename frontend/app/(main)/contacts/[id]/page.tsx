@@ -8,20 +8,26 @@ import {
     settleSplit,
     settleSplitCompletely,
     unsettleSplit,
+    createIndividualTransaction,
+    settleIndividualTransaction,
+    settleIndividualTransactionCompletely,
+    unsettleIndividualTransaction,
 } from "@/services/transactions";
 
 interface Transaction {
     id: number;
-    split_id: number;
+    split_id?: number;
+    individual_transaction_id?: number;
+    type: "expense" | "individual";
+    direction?: "lend" | "borrow";
     amount: number;
-    settled_amount: string;
+    settled_amount: number;
     remaining_amount: number;
     settled: boolean;
     date: string;
     paid_by: string;
     note: string;
 }
-
 interface BalanceData {
     contact_id: number;
     contact_name: string;
@@ -39,7 +45,8 @@ export default function ContactProfilePage() {
     const [showSettled, setShowSettled] = useState(false);
 
     const [loading, setLoading] = useState(true);
-    const [settleSplitId, setSettleSplitId] = useState<number | null>(null);
+    const [settleTransaction, setSettleTransaction] =
+        useState<Transaction | null>(null);
     const [settleAmount, setSettleAmount] = useState("");
 
     const [sortBy, setSortBy] = useState<
@@ -47,6 +54,14 @@ export default function ContactProfilePage() {
     >("newest");
 
     const [showSort, setShowSort] = useState(false);
+    const [showIndividualForm, setShowIndividualForm] = useState(false);
+    const [individualDirection, setIndividualDirection] =
+        useState<"lend" | "borrow">("lend");
+    const [individualAmount, setIndividualAmount] = useState("");
+    const [individualNote, setIndividualNote] = useState("");
+    const [individualDateTime, setIndividualDateTime] = useState("");
+    const [savingIndividual, setSavingIndividual] = useState(false);
+    const [individualError, setIndividualError] = useState<string | null>(null);
 
     async function loadBalance() {
         try {
@@ -75,52 +90,115 @@ export default function ContactProfilePage() {
         loadBalance();
     }, [contactId, showSettled]);
 
-    function openSettleModal(splitId: number) {
-        setSettleSplitId(splitId);
+    function openSettleModal(transaction: Transaction) {
+        setSettleTransaction(transaction);
         setSettleAmount("");
     }
 
     function closeSettleModal() {
-        setSettleSplitId(null);
+        setSettleTransaction(null);
         setSettleAmount("");
     }
 
     async function handleSettleAmount() {
-        if (settleSplitId === null) return;
+        if (!settleTransaction) return;
 
         try {
-            await settleSplit(
-                settleSplitId,
-                Number(settleAmount)
-            );
+            if (settleTransaction.type === "individual") {
+                await settleIndividualTransaction(
+                    settleTransaction.individual_transaction_id!,
+                    Number(settleAmount)
+                );
+            } else {
+                await settleSplit(
+                    settleTransaction.split_id!,
+                    Number(settleAmount)
+                );
+            }
 
             await loadBalance();
             closeSettleModal();
         } catch (error) {
-            console.error("Failed to settle split:", error);
+            console.error("Failed to settle transaction:", error);
         }
     }
-
     async function handleSettleCompletely() {
-        if (settleSplitId === null) return;
+        if (!settleTransaction) return;
 
         try {
-            await settleSplitCompletely(settleSplitId);
+            if (settleTransaction.type === "individual") {
+                await settleIndividualTransactionCompletely(
+                    settleTransaction.individual_transaction_id!
+                );
+            } else {
+                await settleSplitCompletely(
+                    settleTransaction.split_id!
+                );
+            }
 
             await loadBalance();
             closeSettleModal();
         } catch (error) {
-            console.error("Failed to settle split:", error);
+            console.error("Failed to settle transaction:", error);
         }
     }
-
-    async function handleUnsettle(splitId: number) {
+    async function handleUnsettle(transaction: Transaction) {
         try {
-            await unsettleSplit(splitId);
+            if (transaction.type === "individual") {
+                await unsettleIndividualTransaction(
+                    transaction.individual_transaction_id!
+                );
+            } else {
+                await unsettleSplit(
+                    transaction.split_id!
+                );
+            }
 
             await loadBalance();
         } catch (error) {
-            console.error("Failed to unsettle split:", error);
+            console.error("Failed to unsettle transaction:", error);
+        }
+    }
+    async function handleCreateIndividualTransaction() {
+        if (savingIndividual) return;
+
+        const amount = Number(individualAmount);
+
+        if (!individualAmount || amount <= 0) {
+            setIndividualError("Enter a valid amount.");
+            return;
+        }
+
+        if (!individualDateTime) {
+            setIndividualError("Select a date and time.");
+            return;
+        }
+
+        try {
+            setSavingIndividual(true);
+            setIndividualError(null);
+
+            await createIndividualTransaction(contactId, {
+                direction: individualDirection,
+                amount: individualAmount,
+                note: individualNote,
+                transaction_datetime: individualDateTime,
+            });
+
+            setShowIndividualForm(false);
+            setIndividualAmount("");
+            setIndividualNote("");
+            setIndividualDateTime("");
+            setIndividualDirection("lend");
+
+            await loadBalance();
+        } catch (error: any) {
+            setIndividualError(
+                error?.response?.data?.error ||
+                "Failed to create transaction."
+            );
+        } finally {
+            setSavingIndividual(false);
         }
     }
 
@@ -240,6 +318,18 @@ export default function ContactProfilePage() {
                                 </>
                             )}
                         </div>
+                        <div className="mt-6">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIndividualError(null);
+                                    setShowIndividualForm(true);
+                                }}
+                                className="w-full rounded-2xl bg-sp-primary px-4 py-3.5 text-sm font-semibold text-white transition hover:opacity-90"
+                            >
+                                + Add Transaction
+                            </button>
+                        </div>
 
                         {/* Transaction History */}
                         <div className="mt-8">
@@ -348,7 +438,9 @@ export default function ContactProfilePage() {
                                             return (
                                                 <div
                                                     key={
-                                                        transaction.split_id
+                                                        transaction.type === "individual"
+                                                            ? `individual-${transaction.individual_transaction_id}`
+                                                            : `expense-${transaction.split_id}`
                                                     }
                                                 >
                                                     {showDate && (
@@ -364,22 +456,33 @@ export default function ContactProfilePage() {
                                                     <div className="flex items-center gap-3 border-b border-white/5 py-4">
 
                                                         {/* Transaction */}
-                                                        <Link
-                                                            href={`/transactions/${transaction.id}`}
-                                                            className="min-w-0 flex-1"
-                                                        >
-                                                            <p className="truncate text-sm font-medium text-white">
-                                                                {transaction.note ||
-                                                                    "Untitled transaction"}
-                                                            </p>
+                                                        {transaction.type === "expense" ? (
+                                                            <Link
+                                                                href={`/transactions/${transaction.id}`}
+                                                                className="min-w-0 flex-1"
+                                                            >
+                                                                <p className="truncate text-sm font-medium text-white">
+                                                                    {transaction.note ||
+                                                                        "Untitled transaction"}
+                                                                </p>
 
-                                                            <p className="mt-1 text-xs text-sp-muted">
-                                                                {time} ·{" "}
-                                                                {
-                                                                    transaction.paid_by
-                                                                }
-                                                            </p>
-                                                        </Link>
+                                                                <p className="mt-1 text-xs text-sp-muted">
+                                                                    {time} · {transaction.paid_by}
+                                                                </p>
+                                                            </Link>
+                                                        ) : (
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="truncate text-sm font-medium text-white">
+                                                                    {transaction.direction === "lend"
+                                                                        ? "You lent"
+                                                                        : "You borrowed"}
+                                                                </p>
+
+                                                                <p className="mt-1 text-xs text-sp-muted">
+                                                                    {time} · {transaction.note || "Individual transaction"}
+                                                                </p>
+                                                            </div>
+                                                        )}
 
                                                         {/* Amount + Action */}
                                                         <div className="flex shrink-0 items-center gap-3">
@@ -431,22 +534,21 @@ export default function ContactProfilePage() {
                                                                     remaining
                                                                 </p>
                                                             </div>
-
+                                                            {/* {transaction.type === "expense" && ( */}
                                                             <button
                                                                 onClick={() =>
                                                                     showSettled
-                                                                        ? handleUnsettle(transaction.split_id)
-                                                                        : openSettleModal(transaction.split_id)
+                                                                        ? handleUnsettle(transaction)
+                                                                        : openSettleModal(transaction)
                                                                 }
                                                                 className={`rounded-xl px-3 py-2 text-xs font-medium transition ${showSettled
                                                                     ? "bg-yellow-600 hover:bg-yellow-500"
                                                                     : "bg-sp-primary hover:bg-sp-primary-deep"
                                                                     }`}
                                                             >
-                                                                {showSettled
-                                                                    ? "UNSETTLE"
-                                                                    : "SETTLE"}
+                                                                {showSettled ? "UNSETTLE" : "SETTLE"}
                                                             </button>
+                                                            {/* )} */}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -513,7 +615,7 @@ export default function ContactProfilePage() {
                     </div>
                 </div>
             )}
-            {settleSplitId !== null && (
+            {settleTransaction !== null && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 px-4">
                     <div className="w-full max-w-sm rounded-2xl bg-sp-surface p-5">
 
@@ -538,10 +640,7 @@ export default function ContactProfilePage() {
                         <p className="mt-1 text-2xl font-semibold text-white">
                             ₹
                             {Number(
-                                data?.transactions.find(
-                                    (transaction) =>
-                                        transaction.split_id === settleSplitId
-                                )?.remaining_amount ?? 0
+                                settleTransaction?.remaining_amount ?? 0
                             ).toLocaleString("en-IN", {
                                 minimumFractionDigits: 2,
                             })}
@@ -581,6 +680,134 @@ export default function ContactProfilePage() {
                             Settle Completely
                         </button>
 
+                    </div>
+                </div>
+            )}
+            {showIndividualForm && (
+                <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/60 px-4 backdrop-blur-sm sm:items-center">
+                    <div className="w-full max-w-lg rounded-t-[28px] bg-sp-bg p-5 shadow-2xl sm:rounded-2xl">
+                        <div className="mb-6 flex items-center justify-between">
+                            <h2 className="text-lg font-semibold text-white">
+                                Add Transaction
+                            </h2>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowIndividualForm(false);
+                                    setIndividualError(null);
+                                }}
+                                className="text-sp-muted transition hover:text-white"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-sp-muted">
+                            What happened?
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setIndividualDirection("lend")}
+                                className={`rounded-xl px-4 py-3 text-sm font-medium transition ${individualDirection === "lend"
+                                    ? "bg-sp-primary text-white"
+                                    : "bg-sp-surface text-sp-muted hover:text-white"
+                                    }`}
+                            >
+                                You lent
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setIndividualDirection("borrow")}
+                                className={`rounded-xl px-4 py-3 text-sm font-medium transition ${individualDirection === "borrow"
+                                    ? "bg-sp-primary text-white"
+                                    : "bg-sp-surface text-sp-muted hover:text-white"
+                                    }`}
+                            >
+                                You borrowed
+                            </button>
+                        </div>
+
+                        <div className="mt-5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-sp-muted">
+                                Amount
+                            </label>
+
+                            <input
+                                type="number"
+                                inputMode="decimal"
+                                min="0"
+                                step="0.01"
+                                value={individualAmount}
+                                onChange={(event) =>
+                                    setIndividualAmount(event.target.value)
+                                }
+                                placeholder="0.00"
+                                className="mt-2 w-full rounded-xl border border-white/10 bg-sp-surface px-4 py-3 text-white outline-none placeholder:text-sp-muted focus:border-sp-primary"
+                            />
+                        </div>
+
+                        <div className="mt-5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-sp-muted">
+                                Note
+                            </label>
+
+                            <input
+                                type="text"
+                                value={individualNote}
+                                onChange={(event) =>
+                                    setIndividualNote(event.target.value)
+                                }
+                                placeholder="Optional"
+                                className="mt-2 w-full rounded-xl border border-white/10 bg-sp-surface px-4 py-3 text-white outline-none placeholder:text-sp-muted focus:border-sp-primary"
+                            />
+                        </div>
+
+                        <div className="mt-5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-sp-muted">
+                                Date & Time
+                            </label>
+
+                            <input
+                                type="datetime-local"
+                                value={individualDateTime}
+                                onChange={(event) =>
+                                    setIndividualDateTime(event.target.value)
+                                }
+                                className="mt-2 w-full rounded-xl border border-white/10 bg-sp-surface px-4 py-3 text-white outline-none focus:border-sp-primary"
+                            />
+                        </div>
+
+                        {individualError && (
+                            <p className="mt-4 rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                                {individualError}
+                            </p>
+                        )}
+
+                        <div className="mt-6 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowIndividualForm(false);
+                                    setIndividualError(null);
+                                }}
+                                className="flex-1 rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/5"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                type="button"
+                                disabled={savingIndividual}
+                                onClick={handleCreateIndividualTransaction}
+                                className="flex-1 rounded-xl bg-sp-primary px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {savingIndividual ? "Adding..." : "Add Transaction"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

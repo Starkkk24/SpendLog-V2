@@ -89,3 +89,53 @@ export async function deleteTransaction(id: number) {
     const response = await api.delete(`/transactions/${id}/`);
     return response.data;
 }
+
+export async function createIndividualTransaction(
+    contactId: number,
+    data: {
+        direction: "lend" | "borrow";
+        amount: string;
+        note: string;
+        transaction_datetime: string;
+    }
+) {
+    const response = await api.post(
+        `/contacts/${contactId}/individual-transactions/`,
+        data
+    );
+
+    return response.data;
+}
+export async function settleIndividualTransaction(
+    transactionId: number,
+    amount: number
+) {
+    const response = await api.post(
+        `/individual-transactions/${transactionId}/settle/`,
+        { amount }
+    );
+
+    return response.data;
+}
+
+export async function settleIndividualTransactionCompletely(
+    transactionId: number
+) {
+    const response = await api.post(
+        `/individual-transactions/${transactionId}/settle/`,
+        { complete: true }
+    );
+
+    return response.data;
+}
+
+export async function unsettleIndividualTransaction(
+    transactionId: number
+) {
+    const response = await api.post(
+        `/individual-transactions/${transactionId}/unsettle/`
+    );
+
+    return response.data;
+}
+

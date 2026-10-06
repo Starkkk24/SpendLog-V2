@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Contact, Transaction, TransactionSplit
+from .models import Contact, Transaction, TransactionSplit, IndividualTransaction
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q, Sum
@@ -488,3 +488,64 @@ class TransactionSerializer(serializers.ModelSerializer):
                             existing_split.delete()
 
             return instance
+
+class IndividualTransactionSerializer(serializers.ModelSerializer):
+    contact_name = serializers.CharField(
+        source="contact.name",
+        read_only=True
+    )
+
+    settled_amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        read_only=True
+    )
+
+    remaining_amount = serializers.SerializerMethodField()
+
+    class Meta:
+        model = IndividualTransaction
+        fields = [
+            "id",
+            "contact",
+            "contact_name",
+            "direction",
+            "amount",
+            "settled_amount",
+            "remaining_amount",
+            "note",
+            "transaction_datetime",
+            "created_at",
+        ]
+        read_only_fields = [
+            "id",
+            "contact",
+            "contact_name",
+            "settled_amount",
+            "remaining_amount",
+            "created_at",
+        ]
+
+    def get_remaining_amount(self, obj):
+        return obj.amount - obj.settled_amount
+
+    def validate(self, data):
+        user = self.context["request"].user
+        contact = self.context.get("contact")
+    
+        if contact is None:
+            raise serializers.ValidationError({
+                "contact": "Contact is required."
+            })
+    
+        if contact.owner != user:
+            raise serializers.ValidationError({
+                "contact": "You can only use your own contacts."
+            })
+    
+        if data["amount"] <= 0:
+            raise serializers.ValidationError({
+                "amount": "Amount must be greater than zero."
+            })
+    
+        return data

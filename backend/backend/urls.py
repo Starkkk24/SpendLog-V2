@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from accounts.views import LoginAPI, SignupAPI, protected_view, LogoutAPI, contact_list, contact_detail, transaction_list, transaction_detail, balance_view,profile_balance_view, settle_split_view, unsettle_split_view
+from accounts.views import LoginAPI, SignupAPI, protected_view, LogoutAPI, contact_list, contact_detail, transaction_list, transaction_detail, balance_view,profile_balance_view, settle_split_view, unsettle_split_view, individual_transaction_list, settle_individual_transaction_view, unsettle_individual_transaction_view
 from rest_framework_simplejwt.views import TokenRefreshView
 # from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -36,4 +36,7 @@ urlpatterns = [
     path('profile/balance/', profile_balance_view),
     path("transaction-splits/<int:split_id>/settle/", settle_split_view),
     path("transaction-splits/<int:split_id>/unsettle/", unsettle_split_view),
+    path("contacts/<int:contact_id>/individual-transactions/",individual_transaction_list,),
+    path("individual-transactions/<int:transaction_id>/settle/",settle_individual_transaction_view,),
+    path("individual-transactions/<int:transaction_id>/unsettle/",unsettle_individual_transaction_view,),
     ]
