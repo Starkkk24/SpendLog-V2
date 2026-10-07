@@ -640,6 +640,44 @@ def individual_transaction_list(request, contact_id):
         status=400
     )
 
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_individual_transaction_view(request, transaction_id):
+
+    user = request.user
+
+    try:
+        individual_transaction = (
+            IndividualTransaction.objects
+            .select_related("contact")
+            .get(
+                id=transaction_id,
+                contact__owner=user
+            )
+        )
+
+    except IndividualTransaction.DoesNotExist:
+        return Response(
+            {"error": "Individual transaction not found."},
+            status=404
+        )
+
+    if individual_transaction.settled_amount > 0:
+        return Response(
+            {
+                "error": (
+                    "This transaction cannot be deleted because "
+                    "settlement activity has already occurred."
+                )
+            },
+            status=400
+        )
+
+    individual_transaction.delete()
+
+    return Response(status=204)
+
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def settle_individual_transaction_view(request, transaction_id):

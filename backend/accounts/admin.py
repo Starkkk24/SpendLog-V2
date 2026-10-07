@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Contact, Transaction, TransactionSplit
+from .models import Contact, Transaction, TransactionSplit, IndividualTransaction
 
 
 @admin.register(Contact)
@@ -17,3 +17,8 @@ class TransactionAdmin(admin.ModelAdmin):
 @admin.register(TransactionSplit)
 class TransactionSplitAdmin(admin.ModelAdmin):
     list_display = ("id", "transaction", "contact", "amount")
+
+
+@admin.register(IndividualTransaction)
+class TIndividualTransactionAdmin(admin.ModelAdmin):
+    list_display = ("id", "direction", "amount", "settled_amount", "note", "transaction_datetime", "created_at")

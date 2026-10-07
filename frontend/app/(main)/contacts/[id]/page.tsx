@@ -12,6 +12,7 @@ import {
     settleIndividualTransaction,
     settleIndividualTransactionCompletely,
     unsettleIndividualTransaction,
+    deleteIndividualTransaction
 } from "@/services/transactions";
 
 interface Transaction {
@@ -62,6 +63,11 @@ export default function ContactProfilePage() {
     const [individualDateTime, setIndividualDateTime] = useState("");
     const [savingIndividual, setSavingIndividual] = useState(false);
     const [individualError, setIndividualError] = useState<string | null>(null);
+
+    const [deleteIndividualId, setDeleteIndividualId] =
+        useState<number | null>(null);
+    const [deletingIndividual, setDeletingIndividual] =
+        useState(false);
 
     async function loadBalance() {
         try {
@@ -159,6 +165,31 @@ export default function ContactProfilePage() {
             console.error("Failed to unsettle transaction:", error);
         }
     }
+
+    async function handleDeleteIndividualTransaction() {
+        if (deleteIndividualId === null || deletingIndividual) {
+            return;
+        }
+
+        try {
+            setDeletingIndividual(true);
+
+            await deleteIndividualTransaction(
+                deleteIndividualId
+            );
+
+            setDeleteIndividualId(null);
+            await loadBalance();
+        } catch (error) {
+            console.error(
+                "Failed to delete individual transaction:",
+                error
+            );
+        } finally {
+            setDeletingIndividual(false);
+        }
+    }
+
     async function handleCreateIndividualTransaction() {
         if (savingIndividual) return;
 
@@ -535,6 +566,20 @@ export default function ContactProfilePage() {
                                                                 </p>
                                                             </div>
                                                             {/* {transaction.type === "expense" && ( */}
+                                                            {transaction.type === "individual" &&
+                                                                transaction.settled_amount === 0 && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            setDeleteIndividualId(
+                                                                                transaction.individual_transaction_id!
+                                                                            )
+                                                                        }
+                                                                        className="rounded-xl px-3 py-2 text-xs font-medium text-red-400 transition hover:bg-red-500/10"
+                                                                    >
+                                                                        DELETE
+                                                                    </button>
+                                                                )}
                                                             <button
                                                                 onClick={() =>
                                                                     showSettled
@@ -680,6 +725,40 @@ export default function ContactProfilePage() {
                             Settle Completely
                         </button>
 
+                    </div>
+                </div>
+            )}
+            {deleteIndividualId !== null && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 px-4">
+                    <div className="w-full max-w-sm rounded-2xl bg-sp-surface p-5">
+                        <h2 className="text-lg font-semibold text-white">
+                            Delete Transaction?
+                        </h2>
+
+                        <p className="mt-2 text-sm text-sp-muted">
+                            This will permanently delete this personal
+                            lend/borrow transaction.
+                        </p>
+
+                        <div className="mt-6 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setDeleteIndividualId(null)}
+                                disabled={deletingIndividual}
+                                className="flex-1 rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/5"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleDeleteIndividualTransaction}
+                                disabled={deletingIndividual}
+                                className="flex-1 rounded-xl bg-red-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {deletingIndividual ? "Deleting..." : "Delete"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

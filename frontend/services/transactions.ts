@@ -139,3 +139,10 @@ export async function unsettleIndividualTransaction(
     return response.data;
 }
 
+export async function deleteIndividualTransaction(
+    transactionId: number
+) {
+    await api.delete(
+        `/individual-transactions/${transactionId}/`
+    );
+}
