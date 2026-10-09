@@ -381,10 +381,10 @@ def balance_view(request, pk):
         "transactions": transactions,
     })
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def profile_balance_view(request):
-
     user = request.user
 
     profile_balance = 0
@@ -398,19 +398,36 @@ def profile_balance_view(request):
     )
 
     for split in relevant_splits:
-
         transaction = split.transaction
         remaining_amount = split.amount - split.settled_amount
 
         if remaining_amount <= 0:
             continue
 
-
         if transaction.payer_user == user:
             profile_balance += remaining_amount
             lend += remaining_amount
 
         elif transaction.payer_contact is not None:
+            profile_balance -= remaining_amount
+            borrow += remaining_amount
+
+    # Include individual lend/borrow transactions
+    individual_transactions = IndividualTransaction.objects.filter(
+        contact__owner=user
+    )
+
+    for transaction in individual_transactions:
+        remaining_amount = transaction.amount - transaction.settled_amount
+
+        if remaining_amount <= 0:
+            continue
+
+        if transaction.direction == "lend":
+            profile_balance += remaining_amount
+            lend += remaining_amount
+
+        elif transaction.direction == "borrow":
             profile_balance -= remaining_amount
             borrow += remaining_amount
 
