@@ -10,6 +10,7 @@ import {
     unsettleSplit,
 } from "@/services/transactions";
 import { deleteTransaction } from "@/services/transactions";
+import EditTransactionModal from "@/components/transactions/EditTransactionModel";
 
 type Split = {
     id: number;
@@ -46,6 +47,7 @@ export default function TransactionDetailPage() {
     const [loading, setLoading] = useState(true);
     const [settleSplitId, setSettleSplitId] = useState<number | null>(null);
     const [settleAmount, setSettleAmount] = useState("");
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     useEffect(() => {
         async function loadTransaction() {
@@ -61,6 +63,11 @@ export default function TransactionDetailPage() {
 
         loadTransaction();
     }, [params.id]);
+
+    async function refreshTransaction() {
+        const data = await getTransaction(Number(params.id));
+        setTransaction(data);
+    }
 
     function canSettle(split: Split) {
         // Current user paid, contact owes them
@@ -101,8 +108,7 @@ export default function TransactionDetailPage() {
                 Number(settleAmount)
             );
 
-            const data = await getTransaction(Number(params.id));
-            setTransaction(data);
+            await refreshTransaction();
 
             closeSettleModal();
         } catch (error) {
@@ -133,8 +139,7 @@ export default function TransactionDetailPage() {
         try {
             await settleSplitCompletely(settleSplitId);
 
-            const data = await getTransaction(Number(params.id));
-            setTransaction(data);
+            await refreshTransaction();
 
             closeSettleModal();
         } catch (error) {
@@ -146,8 +151,7 @@ export default function TransactionDetailPage() {
         try {
             await unsettleSplit(splitId);
 
-            const data = await getTransaction(Number(params.id));
-            setTransaction(data);
+            await refreshTransaction();
         } catch (error) {
             console.error("Failed to unsettle split:", error);
         }
@@ -210,9 +214,7 @@ export default function TransactionDetailPage() {
                 <div className="ml-4 flex items-center gap-2">
                     <button
                         type="button"
-                        onClick={() =>
-                            router.push(`/transactions/${transaction.id}/edit`)
-                        }
+                        onClick={() => setIsEditModalOpen(true)}
                         className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-white/70 transition hover:border-white/20 hover:bg-white/[0.06] hover:text-white"
                     >
                         Edit
@@ -448,6 +450,14 @@ export default function TransactionDetailPage() {
 
                     </div>
                 </div>
+            )}
+
+            {isEditModalOpen && (
+                <EditTransactionModal
+                    transactionId={transaction.id}
+                    onClose={() => setIsEditModalOpen(false)}
+                    onUpdated={refreshTransaction}
+                />
             )}
         </main>
     );

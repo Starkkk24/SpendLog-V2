@@ -14,6 +14,8 @@ import {
 
     ChevronRight,
 
+    ChevronDown,
+
     Clock3,
 
     Plus,
@@ -23,6 +25,15 @@ import {
     Check,
 
 } from "lucide-react";
+
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "cmdk";
 
 import { getCurrentUser } from "@/services/auth";
 
@@ -495,6 +506,9 @@ export default function CreateTransactionModal({
     const [participants, setParticipants] =
 
         useState<Participant[]>([]);
+
+    const [participantDropdownValue, setParticipantDropdownValue] =
+        useState("");
 
 
 
@@ -1589,13 +1603,13 @@ export default function CreateTransactionModal({
 
                             >
 
-                                <ChevronLeft
+                                {/* <ChevronLeft
 
                                     size={18}
 
                                     className="text-sp-muted"
 
-                                />
+                                /> */}
 
 
 
@@ -1617,13 +1631,13 @@ export default function CreateTransactionModal({
 
 
 
-                                <ChevronRight
+                                {/* <ChevronRight
 
                                     size={18}
 
                                     className="text-sp-muted"
 
-                                />
+                                /> */}
 
 
 
@@ -1705,120 +1719,86 @@ export default function CreateTransactionModal({
 
                         {/* PAID BY */}
 
+                        {/* PAID BY */}
                         <section className="mt-2">
-
                             <p className="mb-2 text-sm text-sp-muted">
-
                                 Paid by:
-
                             </p>
 
+                            <div className="flex min-w-0 items-center gap-3">
+                                {/* LEFT: Payer dropdown */}
+                                <select
+                                    value={
+                                        payerType === "user"
+                                            ? user
+                                                ? `user:${user.id}`
+                                                : ""
+                                            : `contact:${payerContactId}`
+                                    }
+                                    onChange={(event) => {
+                                        const value = event.target.value;
 
+                                        if (value === "__new_contact__") {
+                                            setShowNewContact(true);
+                                            return;
+                                        }
 
-                            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
+                                        if (value.startsWith("user:")) {
+                                            setPayerType("user");
+                                            setPayerContactId(null);
+                                        } else if (value.startsWith("contact:")) {
+                                            const contactId = Number(value.slice(8));
 
-                                {user && (
-
-                                    <button
-
-                                        type="button"
-
-                                        onClick={() => {
-
-                                            setPayerType(
-
-                                                "user"
-
-                                            );
-
-                                            setPayerContactId(
-
-                                                null
-
-                                            );
-
-                                        }}
-
-                                        className={`shrink-0 rounded-xl px-5 py-2.5 text-sm transition ${payerType ===
-
-                                            "user"
-
-                                            ? "bg-sp-primary text-white"
-
-                                            : "bg-sp-surface text-sp-muted"
-
-                                            }`}
-
-                                    >
-
-                                        {user.username}
-
-                                    </button>
-
-                                )}
-
-
-
-                                {contacts.map(
-
-                                    (contact) => (
-
-                                        <button
-
-                                            key={
-
-                                                contact.id
-
+                                            if (
+                                                contacts.some(
+                                                    (contact) => contact.id === contactId
+                                                )
+                                            ) {
+                                                setPayerType("contact");
+                                                setPayerContactId(contactId);
                                             }
+                                        }
+                                    }}
+                                    className="w-36 shrink-0 rounded-xl bg-sp-surface px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-sp-primary"
+                                >
+                                    <option value="" disabled>
+                                        Select payer...
+                                    </option>
 
-                                            type="button"
+                                    {user && (
+                                        <option value={`user:${user.id}`}>
+                                            ME
+                                        </option>
+                                    )}
 
-                                            onClick={() => {
-
-                                                setPayerType(
-
-                                                    "contact"
-
-                                                );
-
-                                                setPayerContactId(
-
-                                                    contact.id
-
-                                                );
-
-                                            }}
-
-                                            className={`shrink-0 rounded-xl px-5 py-2.5 text-sm transition ${payerType ===
-
-                                                "contact" &&
-
-                                                payerContactId ===
-
-                                                contact.id
-
-                                                ? "bg-sp-primary text-white"
-
-                                                : "bg-sp-surface text-sp-muted"
-
-                                                }`}
-
+                                    {contacts.map((contact) => (
+                                        <option
+                                            key={contact.id}
+                                            value={`contact:${contact.id}`}
                                         >
+                                            {contact.name}
+                                        </option>
+                                    ))}
 
-                                            {
+                                    <option value="__new_contact__">
+                                        + New contact
+                                    </option>
+                                </select>
 
-                                                contact.name
-
-                                            }
-
-                                        </button>
-
-                                    )
-
-                                )}
-
+                                {/* RIGHT: Currently selected payer */}
+                                <div className="min-w-0 flex-1 overflow-x-auto scrollbar-none">
+                                    <div className="flex w-max items-center gap-2 pb-1">
+                                        <div className="inline-flex shrink-0 items-center rounded-xl bg-sp-primary px-3 py-2.5 text-sm text-white">
+                                            {payerType === "user"
+                                                ? "ME"
+                                                : contacts.find(
+                                                    (contact) =>
+                                                        contact.id === payerContactId
+                                                )?.name ?? "Select payer"}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-
                         </section>
 
 
@@ -1849,7 +1829,9 @@ export default function CreateTransactionModal({
 
                                 >
 
-                                    {amount || "0"}
+                                    {amount
+                                        ? amount.replace(/\*/g, "×").replace(/\//g, "÷")
+                                        : "0"}
 
                                 </span>
 
@@ -1889,134 +1871,108 @@ export default function CreateTransactionModal({
 
                         {/* SPLITTIES */}
 
+                        {/* SPLITTIES */}
                         <section className="pb-4">
-
                             <p className="mb-2 text-sm text-sp-muted">
-
                                 Splitties:
-
                             </p>
 
+                            <div className="flex min-w-0 items-center gap-3">
+                                {/* LEFT: Participant dropdown + New contact */}
+                                <div className="flex shrink-0 items-center gap-2">
+                                    <select
+                                        value={participantDropdownValue}
+                                        onChange={(event) => {
+                                            const value = event.target.value;
+                                            setParticipantDropdownValue("");
 
+                                            if (value === "__new_contact__") {
+                                                setShowNewContact(true);
+                                                return;
+                                            }
 
-                            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
+                                            if (value.startsWith("user:") && user) {
+                                                toggleUser();
+                                                return;
+                                            }
 
-                                {user && (
+                                            if (value.startsWith("contact:")) {
+                                                const contactId = Number(value.slice(8));
+                                                const contact = contacts.find(
+                                                    (item) => item.id === contactId
+                                                );
 
-                                    <button
-
-                                        type="button"
-
-                                        onClick={
-
-                                            toggleUser
-
-                                        }
-
-                                        className={`shrink-0 rounded-xl px-5 py-2.5 text-sm transition ${isParticipant(
-
-                                            "user",
-
-                                            user.id
-
-                                        )
-
-                                            ? "bg-sp-primary text-white"
-
-                                            : "bg-sp-surface text-sp-muted"
-
-                                            }`}
-
+                                                if (contact) toggleContact(contact);
+                                            }
+                                        }}
+                                        className="w-36 shrink-0 rounded-xl bg-sp-surface px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-sp-primary"
                                     >
+                                        <option value="">Add participant...</option>
 
-                                        {user.username}
+                                        {user && !isParticipant("user", user.id) && (
+                                            <option value={`user:${user.id}`}>ME</option>
+                                        )}
 
-                                    </button>
-
-                                )}
-
-
-
-                                {contacts.map(
-
-                                    (contact) => (
-
-                                        <button
-
-                                            key={
-
-                                                contact.id
-
-                                            }
-
-                                            type="button"
-
-                                            onClick={() =>
-
-                                                toggleContact(
-
-                                                    contact
-
-                                                )
-
-                                            }
-
-                                            className={`shrink-0 rounded-xl px-5 py-2.5 text-sm transition ${isParticipant(
-
-                                                "contact",
-
-                                                contact.id
-
+                                        {contacts
+                                            .filter(
+                                                (contact) => !isParticipant("contact", contact.id)
                                             )
+                                            .map((contact) => (
+                                                <option
+                                                    key={contact.id}
+                                                    value={`contact:${contact.id}`}
+                                                >
+                                                    {contact.name}
+                                                </option>
+                                            ))}
 
-                                                ? "bg-sp-primary text-white"
+                                        <option value="__new_contact__">+ New contact</option>
+                                    </select>
 
-                                                : "bg-sp-surface text-sp-muted"
+                                </div>
 
-                                                }`}
+                                {/* RIGHT: Selected participants, horizontally scrollable */}
+                                <div className="min-w-0 flex-1 overflow-x-auto scrollbar-none">
+                                    <div className="flex w-max items-center gap-2 pb-1">
+                                        {participants.map((participant) => (
+                                            <div
+                                                key={`${participant.type}-${participant.id}`}
+                                                className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-sp-primary px-3 py-2.5 text-sm text-white"
+                                            >
+                                                <span>{participant.type === "user" ? "ME" : participant.name}</span>
 
-                                        >
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (participant.type === "user") {
+                                                            toggleUser();
+                                                        } else {
+                                                            const contact = contacts.find(
+                                                                (item) =>
+                                                                    item.id === participant.id
+                                                            );
 
-                                            {
+                                                            if (contact) {
+                                                                toggleContact(contact);
+                                                            }
+                                                        }
+                                                    }}
+                                                    aria-label={`Remove ${participant.name}`}
+                                                    className="rounded-full p-0.5 transition hover:bg-white/20"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ))}
 
-                                                contact.name
-
-                                            }
-
-                                        </button>
-
-                                    )
-
-                                )}
-
-
-
-                                <button
-
-                                    type="button"
-
-                                    onClick={() =>
-
-                                        setShowNewContact(
-
-                                            true
-
-                                        )
-
-                                    }
-
-                                    className="flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-sp-primary px-4 py-2.5 text-sm text-sp-primary"
-
-                                >
-
-                                    <Plus size={16} />
-
-                                    New
-
-                                </button>
-
+                                        {participants.length === 0 && (
+                                            <span className="whitespace-nowrap py-2 text-sm text-sp-muted">
+                                                No participants selected
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-
                         </section>
 
                     </div>
@@ -2036,12 +1992,9 @@ export default function CreateTransactionModal({
 
                         <button
                             type="button"
-                            disabled={
-                                !transactionTotal ||
-                                participants.length === 0
-                            }
+                            disabled={!transactionTotal || participants.length === 0}
                             onClick={() => setShowSplitSheet(true)}
-                            className="absolute right-2 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-sp-primary text-white shadow-lg transition active:scale-95 disabled:opacity-30"
+                            className="absolute bottom-2.5 right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-sp-primary text-white shadow-lg transition active:scale-95 disabled:opacity-30"
                         >
                             <ChevronRight size={20} />
                         </button>

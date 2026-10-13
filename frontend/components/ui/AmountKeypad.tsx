@@ -426,20 +426,20 @@ export default function AmountKeypad({
     return (
         <div className="w-full overflow-hidden rounded-t-[28px] bg-[#202124] text-white">
             {/* Live result */}
-            <div className="min-h-10 px-5 pt-2 text-right">
+            {/* <div className="min-h-10 px-5 pt-2 text-right">
                 {value && displayResult !== null && (
                     <p className="text-sm tabular-nums text-white/35">
                         = {displayResult}
                     </p>
                 )}
-            </div>
+            </div> */}
 
             {/* Keypad */}
             <div className="grid grid-cols-5">
                 {/* Row 1 */}
                 <Key
-                    label="÷"
-                    onClick={() => appendOperator("/")}
+                    label="+"
+                    onClick={() => appendOperator("+")}
                     disabled={disabled}
                 />
 
@@ -466,11 +466,12 @@ export default function AmountKeypad({
                     onClick={handleBackspace}
                     disabled={disabled}
                 />
+                
 
                 {/* Row 2 */}
                 <Key
-                    label="×"
-                    onClick={() => appendOperator("*")}
+                    label="-"
+                    onClick={() => appendOperator("-")}
                     disabled={disabled}
                 />
 
@@ -492,12 +493,19 @@ export default function AmountKeypad({
                     disabled={disabled}
                 />
 
-                <div />
+                <Key
+                    label="C"
+                    onClick={() => onChange("")}
+                    disabled={disabled}
+                />
+
+
+                {/* <div /> */}
 
                 {/* Row 3 */}
                 <Key
-                    label="−"
-                    onClick={() => appendOperator("-")}
+                    label="×"
+                    onClick={() => appendOperator("*")}
                     disabled={disabled}
                 />
 
@@ -523,14 +531,20 @@ export default function AmountKeypad({
 
                 {/* Row 4 */}
                 <Key
-                    label="+"
-                    onClick={() => appendOperator("+")}
+                    label="÷"
+                    onClick={() => appendOperator("/")}
                     disabled={disabled}
                 />
-
+                {/* 
                 <Key
                     label="+/−"
                     onClick={handleToggleSign}
+                    disabled={disabled}
+                /> */}
+
+                <Key
+                    label="."
+                    onClick={() => appendNumber(".")}
                     disabled={disabled}
                 />
 
@@ -540,11 +554,7 @@ export default function AmountKeypad({
                     disabled={disabled}
                 />
 
-                <Key
-                    label="."
-                    onClick={() => appendNumber(".")}
-                    disabled={disabled}
-                />
+
 
                 <Key
                     label={confirmLabel}

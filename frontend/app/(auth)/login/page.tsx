@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/services/auth";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const router = useRouter();
 
@@ -49,13 +51,30 @@ export default function LoginPage() {
                     className="w-full border rounded-lg p-3"
                 />
 
-                <input
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full border rounded-lg p-3"
-                />
+
+                <div className="relative">
+                    <input
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter password"
+                        className="w-full border rounded-lg p-3"
+                    />
+
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword((visible) => !visible)}
+                        className="absolute inset-y-0 right-3 flex items-center text-sp-muted transition hover:text-white"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                        {showPassword ? (
+                            <EyeOff size={20} />
+                        ) : (
+                            <Eye size={20} />
+                        )}
+                    </button>
+                </div>
+
 
                 <button
                     type="submit"
