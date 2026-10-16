@@ -1537,7 +1537,7 @@ export default function CreateTransactionModal({
 
                 <div
 
-                    className="absolute inset-x-0 bottom-0 flex max-h-[100dvh] flex-col overflow-hidden rounded-t-[28px] bg-sp-bg shadow-2xl"
+                    className="absolute inset-x-0 bottom-0 flex h-[100dvh] flex-col overflow-hidden rounded-t-[28px] bg-sp-bg shadow-2xl"
 
                     onClick={(e) =>
 
@@ -1549,45 +1549,24 @@ export default function CreateTransactionModal({
 
                     {/* Header */}
 
-                    <div className="flex items-center justify-between px-4 py-3">
-
-                        <button
-
-                            type="button"
-
-                            onClick={onClose}
-
-                            className="flex h-10 w-10 items-center justify-center text-sp-muted"
-
-                        >
-
-                            <X size={25} />
-
+                    <div className="flex shrink-0 items-center justify-between px-4 py-1.5">
+                        <button type="button" onClick={onClose}
+                            className="flex h-9 w-9 items-center justify-center text-sp-muted">
+                            <X size={24} />
                         </button>
-
-
-
-                        <h1 className="text-lg font-medium">
-
-                            New transaction
-
-                        </h1>
-
-
-
-                        <div className="w-10" />
-
+                        <h1 className="text-lg font-medium">New transaction</h1>
+                        <div className="w-9" />
                     </div>
 
 
 
                     {/* Scrollable content */}
 
-                    <div className="min-h-0 flex-1 overflow-y-auto px-4">
+                    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4">
 
                         {/* DATE + TIME */}
 
-                        <div className="flex items-center justify-between gap-3 py-3">
+                        <div className="flex shrink-0 items-center justify-between gap-3 py-2">
 
 
 
@@ -1720,10 +1699,8 @@ export default function CreateTransactionModal({
                         {/* PAID BY */}
 
                         {/* PAID BY */}
-                        <section className="mt-2">
-                            <p className="mb-2 text-sm text-sp-muted">
-                                Paid by:
-                            </p>
+                        <section className="mt-1 shrink-0">
+                            <p className="mb-1.5 text-sm text-sp-muted">Paid by:</p>
 
                             <div className="flex min-w-0 items-center gap-3">
                                 {/* LEFT: Payer dropdown */}
@@ -1805,77 +1782,30 @@ export default function CreateTransactionModal({
 
                         {/* AMOUNT */}
 
-                        <div className="py-5 text-center">
-
+                        <div className="flex min-h-[96px] flex-1 flex-col justify-center py-2 text-center">
                             <div className="flex items-center justify-center">
-
-                                <span className="text-4xl text-sp-muted">
-
-                                    ₹
-
+                                <span className="text-3xl text-sp-muted">₹</span>
+                                <span className={`min-w-[80px] text-4xl font-light tabular-nums ${amount ? "text-white" : "text-sp-muted"}`}>
+                                    {amount ? amount.replace(/\*/g, "×").replace(/\//g, "÷") : "0"}
                                 </span>
-
-
-
-                                <span
-
-                                    className={`min-w-[100px] text-5xl font-light tabular-nums ${amount
-
-                                        ? "text-white"
-
-                                        : "text-sp-muted"
-
-                                        }`}
-
-                                >
-
-                                    {amount
-                                        ? amount.replace(/\*/g, "×").replace(/\//g, "÷")
-                                        : "0"}
-
-                                </span>
-
                             </div>
 
-
-
-                            <div className="mx-auto mt-3 h-px w-3/4 bg-white/10" />
-
-
+                            <div className="mx-auto mt-2 h-px w-3/4 bg-white/10" />
 
                             <input
-
                                 type="text"
-
                                 value={note}
-
-                                onChange={(e) =>
-
-                                    setNote(
-
-                                        e.target.value
-
-                                    )
-
-                                }
-
+                                onChange={(e) => setNote(e.target.value)}
                                 placeholder="Add note"
-
-                                className="mt-4 w-full bg-transparent text-center text-sm text-white outline-none placeholder:text-sp-muted"
-
+                                className="mt-2 w-full bg-transparent text-center text-sm text-white outline-none placeholder:text-sp-muted"
                             />
-
                         </div>
 
 
 
                         {/* SPLITTIES */}
-
-                        {/* SPLITTIES */}
-                        <section className="pb-4">
-                            <p className="mb-2 text-sm text-sp-muted">
-                                Splitties:
-                            </p>
+                        <section className="shrink-0 pb-2">
+                            <p className="mb-1.5 text-sm text-sp-muted">Splitties:</p>
 
                             <div className="flex min-w-0 items-center gap-3">
                                 {/* LEFT: Participant dropdown + New contact */}
@@ -1980,10 +1910,8 @@ export default function CreateTransactionModal({
 
 
                     {/* KEYPAD */}
+                    <div className="relative shrink-0 border-t border-white/5 bg-[#202124] pb-[env(safe-area-inset-bottom)]">
 
-                    {/* KEYPAD */}
-
-                    <div className="relative shrink-0 border-t border-white/5 bg-[#202124]">
                         <AmountKeypad
                             value={amount}
                             onChange={setAmount}
@@ -1999,19 +1927,6 @@ export default function CreateTransactionModal({
                             <ChevronRight size={20} />
                         </button>
                     </div>
-
-                    {/* Participant count */}
-                    {/* <div className="pointer-events-none absolute bottom-6 left-5 z-10 text-sp-muted">
-                            <span className="text-xs">
-                                {participants.length > 0
-                                    ? `${participants.length} split${participants.length !== 1
-                                        ? "s"
-                                        : ""
-                                    }`
-                                    : ""}
-                            </span>
-                        </div> */}
-                    {/* </div> */}
 
                 </div>
 
