@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { login } from "@/services/auth";
 import { Eye, EyeOff } from "lucide-react";
@@ -21,7 +22,7 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            await login(username, password);
+            await login(username.trim(), password);
 
             router.push("/transactions");
         } catch (error) {
@@ -83,6 +84,16 @@ export default function LoginPage() {
                 >
                     {loading ? "Logging in..." : "Login"}
                 </button>
+
+                <p className="text-center text-sm text-gray-300">
+                    Don&apos;t have an account?{" "}
+                    <Link
+                        href="/signup"
+                        className="font-medium text-blue-400 hover:text-blue-300 hover:underline"
+                    >
+                        Sign up
+                    </Link>
+                </p>
 
             </form>
 

@@ -20,7 +20,7 @@ from django.shortcuts import get_object_or_404
 
 class LoginAPI(APIView):
     def post(self, request):
-        username = request.data.get("username")
+        username = request.data.get("username", "").strip()
         password = request.data.get("password")
 
         user = authenticate(username=username, password=password)

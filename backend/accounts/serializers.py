@@ -24,7 +24,7 @@ class SignupSerializer(serializers.ModelSerializer):
         validated_data.pop("password2")
 
         user = User.objects.create_user(
-            username=validated_data["username"],
+            username=validated_data["username"].strip(),
             password=validated_data["password"]
         )
 
