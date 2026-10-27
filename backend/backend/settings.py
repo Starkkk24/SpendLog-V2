@@ -35,7 +35,7 @@ DEBUG = os.environ.get("DEBUG", "True").lower() == "true"
 
 ALLOWED_HOSTS = os.environ.get(
     "ALLOWED_HOSTS",
-    "localhost,127.0.0.1,10.254.162.10,10.178.190.10",
+    "localhost,10.152.87.10,10.178.190.10,127.0.0.1,10.254.162.10,",
 ).split(",")
 
 # Startup safety check
@@ -81,6 +81,7 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://10.152.87.10:3000",
     "https://spendlog-v2.vercel.app",
 ]
 
@@ -118,7 +119,7 @@ if USE_SUPABASE:
             "USER": os.environ["DB_USER"],
             "PASSWORD": os.environ["DB_PASSWORD"],
             "HOST": os.environ["DB_HOST"],
-            "PORT": os.environ.get("DB_PORT", "5432"),
+            "PORT": os.environ.get("DB_PORT", "6543"),
             "OPTIONS": {
                 "sslmode": "require",
             },

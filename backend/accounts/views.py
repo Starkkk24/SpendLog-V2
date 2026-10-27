@@ -18,9 +18,13 @@ from .serializers import ContactSerializer, SignupSerializer, TransactionSeriali
 
 from django.shortcuts import get_object_or_404
 
+
+
+
+
 class LoginAPI(APIView):
     def post(self, request):
-        username = request.data.get("username", "").strip()
+        username = request.data.get("username")
         password = request.data.get("password")
 
         user = authenticate(username=username, password=password)
@@ -382,60 +386,72 @@ def balance_view(request, pk):
     })
 
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def profile_balance_view(request):
-    user = request.user
+        user = request.user
 
-    profile_balance = 0
-    lend = 0
-    borrow = 0
+        profile_balance = 0
+        lend = 0
+        borrow = 0
 
-    relevant_splits = TransactionSplit.objects.filter(
-        Q(transaction__payer_user=user, contact__isnull=False)
-        |
-        Q(transaction__payer_contact__owner=user, user=user)
-    )
+        relevant_splits = (
+            TransactionSplit.objects
+            .filter(
+                Q(transaction__payer_user=user, contact__isnull=False)
+                |
+                Q(transaction__payer_contact__owner=user, user=user)
+            )
+            .select_related(
+                "transaction",
+                "transaction__payer_user",
+                "transaction__payer_contact",
+            )
+        )
 
-    for split in relevant_splits:
-        transaction = split.transaction
-        remaining_amount = split.amount - split.settled_amount
+        for split in relevant_splits:
+            transaction = split.transaction
+            remaining_amount = split.amount - split.settled_amount
 
-        if remaining_amount <= 0:
-            continue
+            if remaining_amount <= 0:
+                continue
 
-        if transaction.payer_user == user:
-            profile_balance += remaining_amount
-            lend += remaining_amount
+            if transaction.payer_user == user:
+                profile_balance += remaining_amount
+                lend += remaining_amount
 
-        elif transaction.payer_contact is not None:
-            profile_balance -= remaining_amount
-            borrow += remaining_amount
+            elif transaction.payer_contact is not None:
+                profile_balance -= remaining_amount
+                borrow += remaining_amount
 
-    # Include individual lend/borrow transactions
-    individual_transactions = IndividualTransaction.objects.filter(
-        contact__owner=user
-    )
+        individual_transactions = (
+            IndividualTransaction.objects
+            .filter(contact__owner=user)
+            .select_related("contact")
+        )
 
-    for transaction in individual_transactions:
-        remaining_amount = transaction.amount - transaction.settled_amount
+        for transaction in individual_transactions:
+            remaining_amount = (
+                transaction.amount - transaction.settled_amount
+            )
 
-        if remaining_amount <= 0:
-            continue
+            if remaining_amount <= 0:
+                continue
 
-        if transaction.direction == "lend":
-            profile_balance += remaining_amount
-            lend += remaining_amount
+            if transaction.direction == "lend":
+                profile_balance += remaining_amount
+                lend += remaining_amount
 
-        elif transaction.direction == "borrow":
-            profile_balance -= remaining_amount
-            borrow += remaining_amount
+            elif transaction.direction == "borrow":
+                profile_balance -= remaining_amount
+                borrow += remaining_amount
 
-    return Response({
-        "profile_balance": profile_balance,
-        "lend": lend,
-        "borrow": borrow,
-    })
+        return Response({
+            "profile_balance": profile_balance,
+            "lend": lend,
+            "borrow": borrow,
+        })
 
 
 @api_view(["POST"])
