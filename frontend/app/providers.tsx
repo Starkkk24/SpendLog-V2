@@ -15,8 +15,8 @@ export default function Providers({
             new QueryClient({
                 defaultOptions: {
                     queries: {
-                        staleTime: 30 * 1000, // Fresh for 30 seconds
-                        gcTime: 5 * 60 * 1000, // Keep unused cache for 5 minutes
+                        staleTime: 2 * 60 * 1000, // 2 minutes
+                        gcTime: 10 * 60 * 1000,   // 10 minutes
                         refetchOnWindowFocus: true,
                         retry: 1,
                     },
