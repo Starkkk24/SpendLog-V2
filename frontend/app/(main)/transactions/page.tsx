@@ -3,9 +3,14 @@
 import FAB from "@/components/ui/FAB";
 import CreateTransactionModal from "@/components/transactions/CreateTransactionModal";
 
-import { useEffect, useState } from "react";
+// import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getTransactions } from "@/services/transactions";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+
+// const queryClient = useQueryClient();
 
 type Split = {
     id: number;
@@ -26,8 +31,20 @@ type Transaction = {
 
 
 export default function TransactionsPage() {
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
+
+    const {
+        data: transactions = [],
+        isPending: loading,
+        isError,
+        error,
+        refetch: loadTransactions,
+    } = useQuery<Transaction[]>({
+        queryKey: ["transactions"],
+        queryFn: getTransactions,
+    });
+
+
     const router = useRouter();
     const [showCreateTransaction, setShowCreateTransaction] =
         useState(false);
@@ -35,6 +52,22 @@ export default function TransactionsPage() {
     const [sortBy, setSortBy] = useState<
         "newest" | "oldest" | "high" | "low"
     >("newest");
+
+    if (isError) {
+        console.error("Failed to load transactions:", error);
+
+        return (
+            <main className="min-h-screen bg-sp-bg p-6 text-white">
+                Failed to load transactions. Please try again.
+                <button
+                    onClick={() => loadTransactions()}
+                    className="ml-2 underline"
+                >
+                    Retry
+                </button>
+            </main>
+        );
+    }
 
     const sortedTransactions = [...transactions].sort((a, b) => {
         if (sortBy === "newest") {
@@ -60,20 +93,20 @@ export default function TransactionsPage() {
 
     const [showSort, setShowSort] = useState(false);
 
-    async function loadTransactions() {
-        try {
-            const data = await getTransactions();
-            setTransactions(data);
-        } catch (error) {
-            console.error("Failed to load transactions:", error);
-        } finally {
-            setLoading(false);
-        }
-    }
+    // async function loadTransactions() {
+    //     try {
+    //         const data = await getTransactions();
+    //         setTransactions(data);
+    //     } catch (error) {
+    //         console.error("Failed to load transactions:", error);
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // }
 
-    useEffect(() => {
-        loadTransactions();
-    }, []);
+    // useEffect(() => {
+    //     loadTransactions();
+    // }, []);
 
     if (loading) {
         return (
@@ -102,7 +135,7 @@ export default function TransactionsPage() {
                             Your spending history
                         </p>
                     </div>
-                                        <button
+                    <button
                         type="button"
                         onClick={() => setShowSort(true)}
                         className="rounded-xl bg-sp-surface px-3 py-2 text-xs font-medium text-sp-muted transition hover:text-white"
@@ -134,7 +167,7 @@ export default function TransactionsPage() {
                             const previousDate =
                                 index > 0
                                     ? new Date(
-                                        transactions[index - 1]
+                                        sortedTransactions[index - 1]
                                             .transaction_datetime
                                     )
                                     : null;
@@ -232,7 +265,12 @@ export default function TransactionsPage() {
             {showCreateTransaction && (
                 <CreateTransactionModal
                     onClose={() => setShowCreateTransaction(false)}
-                    onCreated={loadTransactions}
+                    onCreated={async () => {
+                        await Promise.all([
+                            queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+                            queryClient.invalidateQueries({ queryKey: ["profileBalance"] }),
+                        ]);
+                    }}
                 />
             )}
             <FAB
@@ -240,57 +278,57 @@ export default function TransactionsPage() {
                 onClick={() => setShowCreateTransaction(true)}
             />
 
-                            {showSort && (
-                    <div className="fixed inset-0 z-[100] bg-black/50">
-                        <div className="absolute inset-x-0 bottom-0 rounded-t-[28px] bg-sp-bg p-5 shadow-2xl">
-                            <div className="mb-5 flex items-center justify-between">
-                                <h2 className="text-lg font-semibold text-white">
-                                    Sort
-                                </h2>
+            {showSort && (
+                <div className="fixed inset-0 z-[100] bg-black/50">
+                    <div className="absolute inset-x-0 bottom-0 rounded-t-[28px] bg-sp-bg p-5 shadow-2xl">
+                        <div className="mb-5 flex items-center justify-between">
+                            <h2 className="text-lg font-semibold text-white">
+                                Sort
+                            </h2>
 
+                            <button
+                                type="button"
+                                onClick={() => setShowSort(false)}
+                                className="text-sp-muted hover:text-white"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="space-y-2">
+                            {[
+                                ["newest", "Newest first"],
+                                ["oldest", "Oldest first"],
+                                ["high", "Amount: high → low"],
+                                ["low", "Amount: low → high"],
+                            ].map(([value, label]) => (
                                 <button
+                                    key={value}
                                     type="button"
-                                    onClick={() => setShowSort(false)}
-                                    className="text-sp-muted hover:text-white"
+                                    onClick={() => {
+                                        setSortBy(
+                                            value as
+                                            | "newest"
+                                            | "oldest"
+                                            | "high"
+                                            | "low"
+                                        );
+                                        setShowSort(false);
+                                    }}
+                                    className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm transition ${sortBy === value
+                                        ? "bg-sp-primary text-white"
+                                        : "bg-sp-surface text-sp-muted hover:text-white"
+                                        }`}
                                 >
-                                    ✕
+                                    {label}
+
+                                    {sortBy === value && "✓"}
                                 </button>
-                            </div>
-
-                            <div className="space-y-2">
-                                {[
-                                    ["newest", "Newest first"],
-                                    ["oldest", "Oldest first"],
-                                    ["high", "Amount: high → low"],
-                                    ["low", "Amount: low → high"],
-                                ].map(([value, label]) => (
-                                    <button
-                                        key={value}
-                                        type="button"
-                                        onClick={() => {
-                                            setSortBy(
-                                                value as
-                                                | "newest"
-                                                | "oldest"
-                                                | "high"
-                                                | "low"
-                                            );
-                                            setShowSort(false);
-                                        }}
-                                        className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm transition ${sortBy === value
-                                                ? "bg-sp-primary text-white"
-                                                : "bg-sp-surface text-sp-muted hover:text-white"
-                                            }`}
-                                    >
-                                        {label}
-
-                                        {sortBy === value && "✓"}
-                                    </button>
-                                ))}
-                            </div>
+                            ))}
                         </div>
                     </div>
-                )}
+                </div>
+            )}
         </main>
     );
 }

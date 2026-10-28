@@ -3,7 +3,8 @@
 import FAB from "@/components/ui/FAB";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     getContacts,
     createContact,
@@ -19,9 +20,18 @@ interface Contact {
 }
 
 export default function ContactsPage() {
-    const [contacts, setContacts] = useState<Contact[]>([]);
+    const queryClient = useQueryClient();
+
+    const {
+        data: contacts = [],
+        isPending: loading,
+        isError,
+        error,
+    } = useQuery<Contact[]>({
+        queryKey: ["contacts"],
+        queryFn: getContacts,
+    });
     const [name, setName] = useState("");
-    const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editingName, setEditingName] = useState("");
@@ -35,20 +45,6 @@ export default function ContactsPage() {
     const [deleteContactName, setDeleteContactName] = useState("");
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
-    async function loadContacts() {
-        try {
-            const data = await getContacts();
-            setContacts(data);
-        } catch (error) {
-            console.error("Failed to load contacts:", error);
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    useEffect(() => {
-        loadContacts();
-    }, []);
 
     async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -60,12 +56,11 @@ export default function ContactsPage() {
         setSubmitting(true);
 
         try {
-            const newContact = await createContact(name.trim());
+            await createContact(name.trim());
 
-            setContacts((currentContacts) => [
-                ...currentContacts,
-                newContact,
-            ]);
+            await queryClient.invalidateQueries({
+                queryKey: ["contacts"],
+            });
 
             setName("");
         } catch (error) {
@@ -83,18 +78,11 @@ export default function ContactsPage() {
         setSubmitting(true);
 
         try {
-            const updatedContact = await updateContact(
-                id,
-                editingName.trim()
-            );
+            await updateContact(id, editingName.trim());
 
-            setContacts((currentContacts) =>
-                currentContacts.map((contact) =>
-                    contact.id === id
-                        ? updatedContact
-                        : contact
-                )
-            );
+            await queryClient.invalidateQueries({
+                queryKey: ["contacts"],
+            });
 
             setEditingId(null);
             setEditingName("");
@@ -109,9 +97,9 @@ export default function ContactsPage() {
         try {
             await deleteContact(id);
 
-            setContacts((currentContacts) =>
-                currentContacts.filter((contact) => contact.id !== id)
-            );
+            await queryClient.invalidateQueries({
+                queryKey: ["contacts"],
+            });
         } catch (error: any) {
             const message =
                 error?.response?.data?.error ||
@@ -134,6 +122,24 @@ export default function ContactsPage() {
                 ? comparison
                 : -comparison;
         });
+
+    if (isError) {
+        console.error("Failed to load contacts:", error);
+
+        return (
+            <main className="min-h-screen bg-sp-bg p-6 text-white">
+                Failed to load contacts.
+                <button
+                    onClick={() => queryClient.invalidateQueries({
+                        queryKey: ["contacts"],
+                    })}
+                    className="ml-2 underline"
+                >
+                    Retry
+                </button>
+            </main>
+        );
+    }
 
 
 

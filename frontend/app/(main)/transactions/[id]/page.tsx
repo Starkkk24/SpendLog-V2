@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -40,34 +41,46 @@ type Transaction = {
 export default function TransactionDetailPage() {
     const params = useParams();
     const router = useRouter();
+    const queryClient = useQueryClient();
 
-    const [transaction, setTransaction] =
-        useState<Transaction | null>(null);
+    async function invalidateFinancialData() {
+        await Promise.all([
+            queryClient.invalidateQueries({
+                queryKey: ["transactions"],
+            }),
+            queryClient.invalidateQueries({
+                queryKey: ["profileBalance"],
+            }),
+        ]);
+    }
 
-    const [loading, setLoading] = useState(true);
+    async function invalidateTransactionAndFinancialData() {
+        await Promise.all([
+            queryClient.invalidateQueries({
+                queryKey: ["transaction", transactionId],
+            }),
+            invalidateFinancialData(),
+        ]);
+    }
+
+    const transactionId = Number(params.id);
+
+    const {
+        data: transaction,
+        isPending: loading,
+        isError,
+        refetch: refreshTransaction,
+    } = useQuery<Transaction>({
+        queryKey: ["transaction", transactionId],
+        queryFn: () => getTransaction(transactionId),
+        enabled:
+            Number.isInteger(transactionId) &&
+            transactionId > 0,
+    });
     const [settleSplitId, setSettleSplitId] = useState<number | null>(null);
     const [settleAmount, setSettleAmount] = useState("");
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-    useEffect(() => {
-        async function loadTransaction() {
-            try {
-                const data = await getTransaction(Number(params.id));
-                setTransaction(data);
-            } catch (error) {
-                console.error("Failed to load transaction:", error);
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        loadTransaction();
-    }, [params.id]);
-
-    async function refreshTransaction() {
-        const data = await getTransaction(Number(params.id));
-        setTransaction(data);
-    }
 
     function canSettle(split: Split) {
         // Current user paid, contact owes them
@@ -108,7 +121,7 @@ export default function TransactionDetailPage() {
                 Number(settleAmount)
             );
 
-            await refreshTransaction();
+            await invalidateTransactionAndFinancialData();
 
             closeSettleModal();
         } catch (error) {
@@ -127,6 +140,7 @@ export default function TransactionDetailPage() {
 
         try {
             await deleteTransaction(transaction.id);
+            await invalidateFinancialData();
             router.push("/transactions");
         } catch (error) {
             console.error("Failed to delete transaction:", error);
@@ -139,7 +153,7 @@ export default function TransactionDetailPage() {
         try {
             await settleSplitCompletely(settleSplitId);
 
-            await refreshTransaction();
+            await invalidateTransactionAndFinancialData();
 
             closeSettleModal();
         } catch (error) {
@@ -151,7 +165,7 @@ export default function TransactionDetailPage() {
         try {
             await unsettleSplit(splitId);
 
-            await refreshTransaction();
+            await invalidateTransactionAndFinancialData();
         } catch (error) {
             console.error("Failed to unsettle split:", error);
         }
@@ -171,7 +185,7 @@ export default function TransactionDetailPage() {
         );
     }
 
-    if (!transaction) {
+    if (isError || !transaction) {
         return (
             <main className="min-h-screen bg-sp-bg px-4 pb-24 pt-6 text-white sm:px-6">
                 <div className="mx-auto max-w-3xl">
@@ -185,6 +199,15 @@ export default function TransactionDetailPage() {
                     >
                         ← Back to transactions
                     </button>
+
+                    {isError && (
+                        <button
+                            onClick={() => void refreshTransaction()}
+                            className="mt-4 block text-sm text-sp-primary hover:text-white"
+                        >
+                            Try again
+                        </button>
+                    )}
                 </div>
             </main>
         );
@@ -456,7 +479,10 @@ export default function TransactionDetailPage() {
                 <EditTransactionModal
                     transactionId={transaction.id}
                     onClose={() => setIsEditModalOpen(false)}
-                    onUpdated={refreshTransaction}
+                    onUpdated={async () => {
+                        await refreshTransaction();
+                        await invalidateFinancialData();
+                    }}
                 />
             )}
         </main>

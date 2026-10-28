@@ -1,29 +1,39 @@
 'use client';
 
-import { useEffect, useState } from "react";
-// import { fetchWithAuth } from "@/lib/api";
+// import { useEffect, useState } from "react";
+// // import { fetchWithAuth } from "@/lib/api";
+// import { useRouter } from "next/navigation";
+// import { logout, getProtectedData } from "@/services/auth";
+
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { logout, getProtectedData } from "@/services/auth";
 
 export default function DashboardPage() {
 
     const router = useRouter();
-    const [data, setData] = useState<any>(null);
 
-    useEffect(() => {
-    async function fetchData() {
-        try {
-            const data = await getProtectedData();
-            setData(data);
-            console.log(data);
-        } catch (error) {
-            console.error(error);
-            router.push("/login");
-        }
+    const {
+        data,
+        isPending,
+        isError,
+        error,
+    } = useQuery({
+        queryKey: ["protectedData"],
+        queryFn: getProtectedData,
+    });
+
+    if (isPending) {
+        return <div>Loading dashboard...</div>;
     }
 
-    fetchData();
-    }, [router]);
+    if (isError) {
+        console.error(error);
+        router.push("/login");
+        return <div>Redirecting to login...</div>;
+    }
 
 
 

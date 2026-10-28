@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@serwist/next": "^9.5.13",
+    "@tanstack/react-query": "^5.105.0",
+    "@tanstack/react-query-devtools": "^5.105.0",
     "axios": "^1.18.1",
     "cmdk": "^1.1.1",
     "lucide-react": "^1.49.0",

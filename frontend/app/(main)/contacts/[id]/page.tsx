@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getBalance } from "@/services/balance";
@@ -42,10 +43,47 @@ export default function ContactProfilePage() {
 
     const contactId = Number(params.id);
 
-    const [data, setData] = useState<BalanceData | null>(null);
     const [showSettled, setShowSettled] = useState(false);
 
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
+    async function invalidateFinancialData() {
+        await Promise.all([
+            queryClient.invalidateQueries({
+                queryKey: ["contactBalance", contactId],
+            }),
+            queryClient.invalidateQueries({
+                queryKey: ["profileBalance"],
+            }),
+            queryClient.invalidateQueries({
+                queryKey: ["transactions"],
+            }),
+        ]);
+    }
+    const {
+        data,
+        isPending: loading,
+        refetch: loadBalance,
+        isError,
+    } = useQuery<BalanceData>({
+        queryKey: ["contactBalance", contactId, showSettled],
+        queryFn: async () => {
+            const response = await getBalance(contactId, showSettled);
+
+            return {
+                ...response,
+                balance: Number(response.balance),
+                transactions: response.transactions.map(
+                    (transaction: Transaction) => ({
+                        ...transaction,
+                        amount: Number(transaction.amount),
+                        remaining_amount: Number(transaction.remaining_amount),
+                        settled_amount: Number(transaction.settled_amount),
+                    })
+                ),
+            };
+        },
+        enabled: Number.isFinite(contactId) && contactId > 0,
+    });
     const [settleTransaction, setSettleTransaction] =
         useState<Transaction | null>(null);
     const [settleAmount, setSettleAmount] = useState("");
@@ -69,32 +107,9 @@ export default function ContactProfilePage() {
     const [deletingIndividual, setDeletingIndividual] =
         useState(false);
 
-    async function loadBalance() {
-        try {
-            const response = await getBalance(contactId, showSettled);
 
-            setData({
-                ...response,
-                balance: Number(response.balance),
-                transactions: response.transactions.map(
-                    (transaction: Transaction) => ({
-                        ...transaction,
-                        amount: Number(transaction.amount),
-                        remaining_amount: Number(transaction.remaining_amount),
-                        settled_amount: Number(transaction.settled_amount),
-                    })
-                ),
-            });
-        } catch (error) {
-            console.error("Failed to load balance:", error);
-        } finally {
-            setLoading(false);
-        }
-    }
 
-    useEffect(() => {
-        loadBalance();
-    }, [contactId, showSettled]);
+
 
     function openSettleModal(transaction: Transaction) {
         setSettleTransaction(transaction);
@@ -122,7 +137,7 @@ export default function ContactProfilePage() {
                 );
             }
 
-            await loadBalance();
+            await invalidateFinancialData();
             closeSettleModal();
         } catch (error) {
             console.error("Failed to settle transaction:", error);
@@ -142,7 +157,7 @@ export default function ContactProfilePage() {
                 );
             }
 
-            await loadBalance();
+            await invalidateFinancialData();
             closeSettleModal();
         } catch (error) {
             console.error("Failed to settle transaction:", error);
@@ -160,7 +175,7 @@ export default function ContactProfilePage() {
                 );
             }
 
-            await loadBalance();
+            await invalidateFinancialData();
         } catch (error) {
             console.error("Failed to unsettle transaction:", error);
         }
@@ -179,7 +194,7 @@ export default function ContactProfilePage() {
             );
 
             setDeleteIndividualId(null);
-            await loadBalance();
+            await invalidateFinancialData();
         } catch (error) {
             console.error(
                 "Failed to delete individual transaction:",
@@ -222,7 +237,7 @@ export default function ContactProfilePage() {
             setIndividualDateTime("");
             setIndividualDirection("lend");
 
-            await loadBalance();
+            await invalidateFinancialData();
         } catch (error: any) {
             setIndividualError(
                 error?.response?.data?.error ||
@@ -273,7 +288,7 @@ export default function ContactProfilePage() {
                     <p className="mt-8 text-sm text-sp-muted">
                         Loading...
                     </p>
-                ) : data === null ? (
+                ) : isError || !data ? (
                     <p className="mt-8 text-sm text-red-400">
                         Failed to load contact.
                     </p>

@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+// import { useEffect, useState } from "react";
+// import { useRouter } from "next/navigation";
+// import { LogOut, User } from "lucide-react";
+// import { getCurrentUser, logout } from "@/services/auth";
+// import { getProfileBalance } from "@/services/balance";
+
+"use client";
+
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { LogOut, User } from "lucide-react";
 import { getCurrentUser, logout } from "@/services/auth";
@@ -8,31 +16,46 @@ import { getProfileBalance } from "@/services/balance";
 
 export default function ProfilePage() {
     const router = useRouter();
+    const queryClient = useQueryClient();
 
-    const [username, setUsername] = useState("");
-    const [profileBalance, setProfileBalance] = useState(0);
-    const [lend, setLend] = useState(0);
-    const [borrow, setBorrow] = useState(0);
+    const {
+        data: userData,
+        isPending,
+        isError,
+    } = useQuery({
+        queryKey: ["currentUser"],
+        queryFn: getCurrentUser,
+    });
 
-    useEffect(() => {
-        async function loadProfile() {
-            try {
-                const [userData, balanceData] = await Promise.all([
-                    getCurrentUser(),
-                    getProfileBalance(),
-                ]);
+    const {
+        data: balanceData,
+        isPending: balancePending,
+        isError: balanceError,
+    } = useQuery({
+        queryKey: ["profileBalance"],
+        queryFn: getProfileBalance,
+    });
 
-                setUsername(userData.user);
-                setProfileBalance(Number(balanceData.profile_balance));
-                setLend(Number(balanceData.lend));
-                setBorrow(Number(balanceData.borrow));
-            } catch (error) {
-                console.error("Failed to load profile:", error);
-            }
-        }
+    const username = userData?.user ?? "";
+    const profileBalance = Number(balanceData?.profile_balance ?? 0);
+    const lend = Number(balanceData?.lend ?? 0);
+    const borrow = Number(balanceData?.borrow ?? 0);
 
-        loadProfile();
-    }, []);
+    if (isPending || balancePending) {
+        return (
+            <main className="min-h-screen bg-sp-bg p-6 text-white">
+                Loading profile...
+            </main>
+        );
+    }
+
+    if (isError || balanceError) {
+        return (
+            <main className="min-h-screen bg-sp-bg p-6 text-white">
+                Failed to load profile. Please refresh the page.
+            </main>
+        );
+    }
 
     async function handleLogout() {
         try {
@@ -40,6 +63,7 @@ export default function ProfilePage() {
         } catch (error) {
             console.error("Logout failed:", error);
         } finally {
+            queryClient.clear();
             router.push("/login");
         }
     }
@@ -88,13 +112,12 @@ export default function ProfilePage() {
                     </p>
 
                     <p
-                        className={`mt-2 text-3xl font-semibold ${
-                            balancePositive
-                                ? "text-green-400"
-                                : balanceNegative
+                        className={`mt-2 text-3xl font-semibold ${balancePositive
+                            ? "text-green-400"
+                            : balanceNegative
                                 ? "text-red-400"
                                 : "text-white"
-                        }`}
+                            }`}
                     >
                         {profileBalance >= 0 ? "+" : "-"}₹
                         {Math.abs(profileBalance).toFixed(2)}
@@ -104,8 +127,8 @@ export default function ProfilePage() {
                         {balancePositive
                             ? "People owe you"
                             : balanceNegative
-                            ? "You owe people"
-                            : "All accounts are balanced"}
+                                ? "You owe people"
+                                : "All accounts are balanced"}
                     </p>
                 </div>
 
