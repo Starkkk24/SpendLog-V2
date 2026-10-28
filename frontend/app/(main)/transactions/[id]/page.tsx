@@ -51,6 +51,9 @@ export default function TransactionDetailPage() {
             queryClient.invalidateQueries({
                 queryKey: ["profileBalance"],
             }),
+            queryClient.invalidateQueries({
+                queryKey: ["contactBalance"],
+            }),
         ]);
     }
 
@@ -479,8 +482,13 @@ export default function TransactionDetailPage() {
                 <EditTransactionModal
                     transactionId={transaction.id}
                     onClose={() => setIsEditModalOpen(false)}
-                    onUpdated={async () => {
-                        await refreshTransaction();
+                    onUpdated={async (updatedTransaction) => {
+                        // The PATCH response is the same serialized transaction
+                        // the GET returns, so cache it instead of refetching.
+                        queryClient.setQueryData(
+                            ["transaction", transactionId],
+                            updatedTransaction
+                        );
                         await invalidateFinancialData();
                     }}
                 />

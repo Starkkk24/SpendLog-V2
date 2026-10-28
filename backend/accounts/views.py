@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.contrib.auth.models import User
-from django.db.models import Q, F
+from django.db.models import Q
 from decimal import Decimal
 
 from rest_framework.decorators import api_view, permission_classes
@@ -135,16 +135,28 @@ def contact_detail(request, pk):
 
 
 
+def get_user_transactions(user):
+    # Loads everything TransactionSerializer reads, so the
+    # query count stays constant regardless of row count.
+    return Transaction.objects.filter(
+        Q(payer_user=user) |
+        Q(payer_contact__owner=user)
+    ).select_related(
+        "payer_user",
+        "payer_contact"
+    ).prefetch_related(
+        "splits__user",
+        "splits__contact"
+    )
+
+
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def transaction_list(request):
 
     if request.method == "GET":
 
-        transactions = Transaction.objects.filter(
-            Q(payer_user=request.user) |
-            Q(payer_contact__owner=request.user)
-        ).prefetch_related("splits")
+        transactions = get_user_transactions(request.user)
 
         serializer = TransactionSerializer(
             transactions,
@@ -163,6 +175,10 @@ def transaction_list(request):
         if serializer.is_valid():
             transaction_obj = serializer.save()
 
+            transaction_obj = get_user_transactions(
+                request.user
+            ).get(id=transaction_obj.id)
+
             return Response(
                 TransactionSerializer(transaction_obj).data,
                 status=201
@@ -178,10 +194,7 @@ def transaction_list(request):
 def transaction_detail(request, pk):
 
     transaction_obj = get_object_or_404(
-        Transaction.objects.filter(
-            Q(payer_user=request.user) |
-            Q(payer_contact__owner=request.user)
-        ),
+        get_user_transactions(request.user),
         id=pk
     )
 
@@ -199,7 +212,17 @@ def transaction_detail(request, pk):
 
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=200)
+
+            # Re-fetch: the prefetched splits are stale after
+            # update() creates or deletes splits.
+            transaction_obj = get_user_transactions(
+                request.user
+            ).get(id=pk)
+
+            return Response(
+                TransactionSerializer(transaction_obj).data,
+                status=200
+            )
 
         return Response(serializer.errors, status=400)
 
@@ -214,7 +237,8 @@ def balance_view(request, pk):
 
     user = request.user
 
-    contact = Contact.objects.get(
+    contact = get_object_or_404(
+        Contact,
         id=pk,
         owner=user
     )
@@ -224,7 +248,10 @@ def balance_view(request, pk):
 
     balance = 0
 
-    # 1. Get all relevant expense splits
+    # 1. Get all relevant expense splits.
+    #    Each split row is read once and used for both the
+    #    balance and the selected tab, so the query count
+    #    does not grow with the number of transactions.
     relevant_splits = TransactionSplit.objects.filter(
         Q(
             transaction__payer_user=user,
@@ -235,92 +262,54 @@ def balance_view(request, pk):
             transaction__payer_contact=contact,
             user=user
         )
-    )
+    ).select_related("transaction")
 
-    # 2. Calculate expense balance
-    for split in relevant_splits:
-
-        transaction = split.transaction
-        remaining_amount = split.amount - split.settled_amount
-
-        if remaining_amount <= 0:
-            continue
-
-        if transaction.payer_user == user:
-            balance += remaining_amount
-
-        elif transaction.payer_contact == contact:
-            balance -= remaining_amount
-
-    # 3. Get all individual transactions
+    # 2. Get all individual transactions
     all_individual_transactions = IndividualTransaction.objects.filter(
         contact=contact
     )
 
-    # 4. Calculate individual transaction balance
-    for individual_transaction in all_individual_transactions:
-
-        remaining_amount = (
-            individual_transaction.amount
-            - individual_transaction.settled_amount
-        )
-
-        if remaining_amount <= 0:
-            continue
-
-        if individual_transaction.direction == "lend":
-            balance += remaining_amount
-
-        elif individual_transaction.direction == "borrow":
-            balance -= remaining_amount
-
-    # 5. Filter expense splits for selected tab
-    if show_settled:
-        splits = relevant_splits.filter(
-            settled_amount__gt=0
-        )
-    else:
-        splits = relevant_splits.filter(
-            settled_amount__lt=F("amount")
-        )
-
-    splits = splits.select_related(
-        "transaction",
-        "transaction__payer_user",
-        "transaction__payer_contact"
-    )
-
-    # 6. Filter individual transactions for selected tab
-    if show_settled:
-        individual_transactions = all_individual_transactions.filter(
-            settled_amount__gt=0
-        )
-    else:
-        individual_transactions = all_individual_transactions.filter(
-            settled_amount__lt=F("amount")
-        )
-
-    # 7. Build combined transaction display data
+    # 3. Calculate balance and build combined transaction display data
     transactions = []
 
     # Existing expense transactions
-    for split in splits:
+    for split in relevant_splits:
 
         transaction = split.transaction
+
+        user_paid = transaction.payer_user_id == user.id
+        contact_paid = transaction.payer_contact_id == contact.id
 
         remaining_amount = (
             split.amount - split.settled_amount
         )
 
+        if remaining_amount > 0:
+
+            if user_paid:
+                balance += remaining_amount
+
+            elif contact_paid:
+                balance -= remaining_amount
+
+        # Filter expense splits for selected tab
+        if show_settled:
+            visible = split.settled_amount > 0
+        else:
+            visible = split.settled_amount < split.amount
+
+        if not visible:
+            continue
+
         is_settled = (
             split.settled_amount == split.amount
         )
 
-        if transaction.payer_user == user:
+        if user_paid:
             amount = split.amount
             paid_by = user.username
 
-        elif transaction.payer_contact == contact:
+        elif contact_paid:
             amount = -split.amount
             paid_by = contact.name
 
@@ -338,12 +327,32 @@ def balance_view(request, pk):
         })
 
     # Individual lend/borrow transactions
-    for individual_transaction in individual_transactions:
+    for individual_transaction in all_individual_transactions:
 
         remaining_amount = (
             individual_transaction.amount
             - individual_transaction.settled_amount
         )
+
+        if remaining_amount > 0:
+
+            if individual_transaction.direction == "lend":
+                balance += remaining_amount
+
+            elif individual_transaction.direction == "borrow":
+                balance -= remaining_amount
+
+        # Filter individual transactions for selected tab
+        if show_settled:
+            visible = individual_transaction.settled_amount > 0
+        else:
+            visible = (
+                individual_transaction.settled_amount
+                < individual_transaction.amount
+            )
+
+        if not visible:
+            continue
 
         is_settled = (
             individual_transaction.settled_amount
@@ -372,7 +381,7 @@ def balance_view(request, pk):
             "settled": is_settled,
         })
 
-    # 8. Sort combined transactions newest first
+    # 4. Sort combined transactions newest first
     transactions.sort(
         key=lambda transaction: transaction["date"],
         reverse=True

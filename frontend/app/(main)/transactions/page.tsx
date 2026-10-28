@@ -265,11 +265,17 @@ export default function TransactionsPage() {
             {showCreateTransaction && (
                 <CreateTransactionModal
                     onClose={() => setShowCreateTransaction(false)}
-                    onCreated={async () => {
-                        await Promise.all([
+                    onCreated={() => {
+                        // Refresh in the background so the modal can close as
+                        // soon as the POST succeeds instead of waiting for the
+                        // list refetch.
+                        void Promise.all([
                             queryClient.invalidateQueries({ queryKey: ["transactions"] }),
                             queryClient.invalidateQueries({ queryKey: ["profileBalance"] }),
-                        ]);
+                            queryClient.invalidateQueries({ queryKey: ["contactBalance"] }),
+                        ]).catch((error) => {
+                            console.error("Failed to refresh transaction data:", error);
+                        });
                     }}
                 />
             )}

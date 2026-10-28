@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import {
     CalendarDays,
@@ -84,7 +85,10 @@ type FormState = {
 type Props = {
     transactionId: number;
     onClose: () => void;
-    onUpdated?: () => void | Promise<void>;
+    // Receives the updated transaction returned by the PATCH request.
+    onUpdated?: (
+        transaction: TransactionResponse
+    ) => void | Promise<void>;
 };
 
 function keyOf(
@@ -344,6 +348,8 @@ export default function EditTransactionModal({
     onClose,
     onUpdated,
 }: Props) {
+    const queryClient = useQueryClient();
+
     const [transaction, setTransaction] =
         useState<TransactionResponse | null>(null);
     const [form, setForm] = useState<FormState | null>(null);
@@ -394,11 +400,22 @@ export default function EditTransactionModal({
             }
 
             try {
+                // Served from the shared cache when fresh. The detail page
+                // invalidates ["transaction", id] after every settlement.
                 const [transactionData, userData, contactData] =
                     await Promise.all([
-                        getTransaction(transactionId),
-                        getCurrentUser(),
-                        getContacts(),
+                        queryClient.fetchQuery({
+                            queryKey: ["transaction", transactionId],
+                            queryFn: () => getTransaction(transactionId),
+                        }),
+                        queryClient.fetchQuery({
+                            queryKey: ["currentUser"],
+                            queryFn: getCurrentUser,
+                        }),
+                        queryClient.fetchQuery({
+                            queryKey: ["contacts"],
+                            queryFn: getContacts,
+                        }),
                     ]);
 
                 if (!active) return;
@@ -445,7 +462,7 @@ export default function EditTransactionModal({
         return () => {
             active = false;
         };
-    }, [transactionId]);
+    }, [queryClient, transactionId]);
 
     const originalPayerKey = transaction
         ? keyOf({
@@ -815,6 +832,9 @@ export default function EditTransactionModal({
 
             const contact = await createContact(name);
             setContacts((current) => [...current, contact]);
+            await queryClient.invalidateQueries({
+                queryKey: ["contacts"],
+            });
 
             addParticipant({
                 user: null,
@@ -1132,7 +1152,7 @@ export default function EditTransactionModal({
         setSaveError(null);
 
         try {
-            await updateTransaction(currentTransaction.id, {
+            const updatedTransaction = await updateTransaction(currentTransaction.id, {
                 payer_user: currentForm.payer_user,
                 payer_contact: currentForm.payer_contact,
                 total_amount: total.toFixed(2),
@@ -1147,7 +1167,7 @@ export default function EditTransactionModal({
                 })),
             });
 
-            await onUpdated?.();
+            await onUpdated?.(updatedTransaction as TransactionResponse);
             onClose();
         } catch (saveFailure) {
             console.error("Failed to update transaction:", saveFailure);

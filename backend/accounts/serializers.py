@@ -158,7 +158,7 @@ class TransactionSerializer(serializers.ModelSerializer):
             })
 
         # Contact payer must belong to current user
-        if payer_contact and payer_contact.owner != user:
+        if payer_contact and payer_contact.owner_id != user.id:
             raise serializers.ValidationError({
                 "payer_contact": "You can only use your own contacts."
             })
@@ -193,7 +193,7 @@ class TransactionSerializer(serializers.ModelSerializer):
 
             # Contact participant must belong to current user
             else:
-                if split_contact.owner != user:
+                if split_contact.owner_id != user.id:
                     raise serializers.ValidationError({
                         "splits": "You can only use your own contacts."
                     })
@@ -538,7 +538,7 @@ class IndividualTransactionSerializer(serializers.ModelSerializer):
                 "contact": "Contact is required."
             })
     
-        if contact.owner != user:
+        if contact.owner_id != user.id:
             raise serializers.ValidationError({
                 "contact": "You can only use your own contacts."
             })

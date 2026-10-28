@@ -4,6 +4,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useQueryClient } from "@tanstack/react-query";
+
 import AmountKeypad from "@/components/ui/AmountKeypad";
 
 import {
@@ -447,6 +449,10 @@ export default function CreateTransactionModal({
 
 }: Props) {
 
+    const queryClient = useQueryClient();
+
+
+
     const [user, setUser] =
 
         useState<CurrentUser | null>(null);
@@ -559,13 +565,20 @@ export default function CreateTransactionModal({
 
             try {
 
+                // Served from the shared cache when fresh.
                 const [currentUser, userContacts] =
 
                     await Promise.all([
 
-                        getCurrentUser(),
+                        queryClient.fetchQuery<CurrentUser>({
+                            queryKey: ["currentUser"],
+                            queryFn: getCurrentUser,
+                        }),
 
-                        getContacts(),
+                        queryClient.fetchQuery<Contact[]>({
+                            queryKey: ["contacts"],
+                            queryFn: getContacts,
+                        }),
 
                     ]);
 
@@ -593,7 +606,7 @@ export default function CreateTransactionModal({
 
         loadData();
 
-    }, []);
+    }, [queryClient]);
 
 
 
@@ -1270,6 +1283,10 @@ export default function CreateTransactionModal({
                 contact,
 
             ]);
+
+            await queryClient.invalidateQueries({
+                queryKey: ["contacts"],
+            });
 
 
 

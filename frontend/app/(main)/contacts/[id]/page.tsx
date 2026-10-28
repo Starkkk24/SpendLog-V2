@@ -57,6 +57,10 @@ export default function ContactProfilePage() {
             queryClient.invalidateQueries({
                 queryKey: ["transactions"],
             }),
+            // Settling a split changes that transaction's detail view.
+            queryClient.invalidateQueries({
+                queryKey: ["transaction"],
+            }),
         ]);
     }
     const {

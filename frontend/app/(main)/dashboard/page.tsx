@@ -7,13 +7,14 @@
 
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { logout, getProtectedData } from "@/services/auth";
 
 export default function DashboardPage() {
 
     const router = useRouter();
+    const queryClient = useQueryClient();
 
     const {
         data,
@@ -39,6 +40,8 @@ export default function DashboardPage() {
 
     async function handleLogout() {
         await logout();
+        // Don't leak the cached user, contacts or balances to the next login.
+        queryClient.clear();
         router.push("/login");
     }
 

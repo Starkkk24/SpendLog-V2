@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { useParams, useRouter } from "next/navigation";
 
+import { useQueryClient } from "@tanstack/react-query";
+
 import axios from "axios";
 
 import AmountKeypad, {
@@ -222,6 +224,8 @@ export default function EditTransactionPage() {
 
     const router = useRouter();
 
+    const queryClient = useQueryClient();
+
     const [transaction, setTransaction] =
 
         useState<TransactionResponse | null>(null);
@@ -276,15 +280,25 @@ export default function EditTransactionPage() {
 
             try {
 
+                // Served from the shared cache when fresh.
                 const [transactionData, userData, contactData] =
 
                     await Promise.all([
 
-                        getTransaction(transactionId),
+                        queryClient.fetchQuery({
+                            queryKey: ["transaction", transactionId],
+                            queryFn: () => getTransaction(transactionId),
+                        }),
 
-                        getCurrentUser(),
+                        queryClient.fetchQuery({
+                            queryKey: ["currentUser"],
+                            queryFn: getCurrentUser,
+                        }),
 
-                        getContacts(),
+                        queryClient.fetchQuery({
+                            queryKey: ["contacts"],
+                            queryFn: getContacts,
+                        }),
 
                     ]);
 
@@ -364,7 +378,7 @@ export default function EditTransactionPage() {
 
         };
 
-    }, [params.id]);
+    }, [params.id, queryClient]);
 
     if (loading) {
 
@@ -870,6 +884,10 @@ export default function EditTransactionPage() {
 
             setContacts((current) => [...current, newContact]);
 
+            await queryClient.invalidateQueries({
+                queryKey: ["contacts"],
+            });
+
             addParticipant({
 
                 user: null,
@@ -1005,6 +1023,21 @@ export default function EditTransactionPage() {
         try {
 
             await updateTransaction(transaction.id, payload);
+
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: ["transaction", transaction.id],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["transactions"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["profileBalance"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["contactBalance"],
+                }),
+            ]);
 
             router.push(`/transactions/${transaction.id}`);
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 // import { getContacts } from "@/services/contacts";
 import { getCurrentUser } from "@/services/auth";
 import { createContact, getContacts } from "@/services/contacts";
@@ -82,6 +83,8 @@ function Section({
 }
 
 export default function TransactionsPage() {
+    const queryClient = useQueryClient();
+
     const [user, setUser] = useState<CurrentUser | null>(null);
     const [contacts, setContacts] = useState<Contact[]>([]);
 
@@ -99,9 +102,16 @@ export default function TransactionsPage() {
 
     useEffect(() => {
         async function loadData() {
+            // Served from the shared cache when fresh.
             const [currentUser, userContacts] = await Promise.all([
-                getCurrentUser(),
-                getContacts(),
+                queryClient.fetchQuery<CurrentUser>({
+                    queryKey: ["currentUser"],
+                    queryFn: getCurrentUser,
+                }),
+                queryClient.fetchQuery<Contact[]>({
+                    queryKey: ["contacts"],
+                    queryFn: getContacts,
+                }),
             ]);
 
             setUser(currentUser);
@@ -109,7 +119,7 @@ export default function TransactionsPage() {
         }
 
         loadData();
-    }, []);
+    }, [queryClient]);
 
 
     useEffect(() => {
@@ -190,6 +200,12 @@ export default function TransactionsPage() {
             const transaction = await createTransaction(payload);
 
             console.log("Created transaction:", transaction);
+
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+                queryClient.invalidateQueries({ queryKey: ["profileBalance"] }),
+                queryClient.invalidateQueries({ queryKey: ["contactBalance"] }),
+            ]);
 
             alert("Transaction created successfully!");
 
@@ -603,6 +619,10 @@ export default function TransactionsPage() {
                                                         ...current,
                                                         newContact,
                                                     ]);
+
+                                                    await queryClient.invalidateQueries({
+                                                        queryKey: ["contacts"],
+                                                    });
 
                                                     setParticipants((current) => [
                                                         ...current,
