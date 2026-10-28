@@ -38,6 +38,11 @@ ALLOWED_HOSTS = os.environ.get(
     "localhost,10.152.87.10,10.178.190.10,127.0.0.1,10.254.162.10,",
 ).split(",")
 
+# Render sets this to the service's own *.onrender.com hostname.
+RENDER_EXTERNAL_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
 # Startup safety check
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY must be set in environment variables.")
