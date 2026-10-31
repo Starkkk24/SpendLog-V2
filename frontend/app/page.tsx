@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import AuthShell from "@/components/auth/AuthShell";
+import Button from "@/components/ui/Button";
 
 export default function Home() {
     const router = useRouter();
@@ -15,36 +17,20 @@ export default function Home() {
     }, [router]);
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-sp-bg px-4 text-white">
-            <main className="w-full max-w-md">
+        <AuthShell
+            title="SpendLog"
+            subtitle="Track your expenses. Keep your balances clear."
+            footer="Split bills, settle up, stay square."
+        >
+            <div className="space-y-3">
+                <Button size="lg" block onClick={() => router.push("/login")}>
+                    Login
+                </Button>
 
-                <div className="mb-8 text-center">
-                    <h1 className="text-3xl font-semibold">
-                        SpendLog
-                    </h1>
-
-                    <p className="mt-2 text-sm text-sp-muted">
-                        Track your expenses. Keep your balances clear.
-                    </p>
-                </div>
-
-                <div className="space-y-3">
-                    <button
-                        onClick={() => router.push("/login")}
-                        className="w-full rounded-xl bg-sp-primary px-5 py-3 text-sm font-medium transition hover:bg-sp-primary-deep"
-                    >
-                        Login
-                    </button>
-
-                    <button
-                        onClick={() => router.push("/signup")}
-                        className="w-full rounded-xl bg-sp-surface px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
-                    >
-                        Create account
-                    </button>
-                </div>
-
-            </main>
-        </div>
+                <Button size="lg" variant="secondary" block onClick={() => router.push("/signup")}>
+                    Create account
+                </Button>
+            </div>
+        </AuthShell>
     );
 }

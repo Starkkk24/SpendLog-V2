@@ -1,5 +1,10 @@
 "use client";
 
+
+
+import { CardSkeleton } from "@/components/ui/Skeleton";
+import { X } from "lucide-react";
+import { toast } from "@/components/ui/Toast";
 import { useEffect, useRef, useState } from "react";
 
 import { useParams, useRouter } from "next/navigation";
@@ -25,6 +30,7 @@ import {
     updateTransaction,
 
 } from "@/services/transactions";
+import { toApiDateTime } from "@/lib/datetime";
 
 type Contact = {
 
@@ -384,15 +390,13 @@ export default function EditTransactionPage() {
 
         return (
 
-            <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900">
+            <main className="page pt-[calc(var(--safe-top)+1.5rem)]">
 
-                <div className="mx-auto max-w-2xl">
+                <div className="space-y-4">
 
-                    <p className="text-sm text-slate-500">
+                    <CardSkeleton />
 
-                        Loading transaction...
-
-                    </p>
+                    <CardSkeleton />
 
                 </div>
 
@@ -406,11 +410,11 @@ export default function EditTransactionPage() {
 
         return (
 
-            <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900">
+            <main className="page pt-[calc(var(--safe-top)+1.5rem)] text-sp-text">
 
-                <div className="mx-auto max-w-2xl">
+                <div className="animate-fade-in">
 
-                    <p className="text-sm text-red-600">
+                    <p className="text-sm text-sp-danger">
 
                         {error ?? "Transaction not found."}
 
@@ -434,7 +438,7 @@ export default function EditTransactionPage() {
 
                         }
 
-                        className="mt-4 text-sm font-medium text-blue-600 hover:text-blue-700"
+                        className="mt-4 text-sm font-medium text-sp-primary-soft hover:text-sp-primary-soft"
 
                     >
 
@@ -934,7 +938,7 @@ export default function EditTransactionPage() {
 
         if (!form.transaction_datetime) {
 
-            alert("Please select the transaction date and time.");
+            toast.error("Please select the transaction date and time.");
 
             return;
 
@@ -942,7 +946,7 @@ export default function EditTransactionPage() {
 
         if (form.splits.length === 0) {
 
-            alert("Add at least one participant.");
+            toast.error("Add at least one participant.");
 
             return;
 
@@ -1002,7 +1006,7 @@ export default function EditTransactionPage() {
 
             note: form.note,
 
-            transaction_datetime: form.transaction_datetime,
+            transaction_datetime: toApiDateTime(form.transaction_datetime),
 
             splits: form.splits.map((split) => ({
 
@@ -1161,13 +1165,13 @@ export default function EditTransactionPage() {
 
     return (
 
-        <main className="min-h-screen w-full overflow-x-hidden bg-[#101217] text-white">
+        <main className="min-h-dvh w-full overflow-x-hidden bg-sp-bg text-white">
 
-            <div className="mx-auto flex min-h-screen w-full max-w-2xl min-w-0 flex-col bg-[#101217]">
+            <div className="mx-auto flex min-h-dvh w-full max-w-2xl min-w-0 animate-fade-in flex-col bg-sp-bg">
 
                 {/* Header */}
 
-                <header className="sticky top-0 z-20 flex items-center justify-between border-b border-white/[0.06] bg-[#101217]/95 px-5 py-4 backdrop-blur sm:px-6">
+                <header className="sticky top-0 z-(--z-header) flex items-center justify-between border-b border-sp-border bg-sp-bg/80 px-4 pt-[calc(var(--safe-top)+0.75rem)] pb-3 backdrop-blur-xl sm:px-6">
 
                     <button
 
@@ -1175,13 +1179,13 @@ export default function EditTransactionPage() {
 
                         onClick={() => router.push(`/transactions/${transaction.id}`)}
 
-                        className="flex h-10 w-10 items-center justify-center rounded-full text-3xl leading-none text-white/60 transition hover:bg-white/[0.06] hover:text-white"
+                        className="flex h-10 w-10 items-center justify-center rounded-full text-white/60 transition hover:bg-white/[0.06] hover:text-white active:scale-90"
 
                         aria-label="Close"
 
                     >
 
-                        ×
+                        <X size={22} />
 
                     </button>
 
@@ -1207,7 +1211,7 @@ export default function EditTransactionPage() {
 
                 {saveError && (
 
-                    <div className="mx-4 mt-3 rounded-xl border border-red-400/20 bg-red-500/10 px-3.5 py-3 text-sm text-red-300 sm:mx-6">
+                    <div className="mx-4 mt-3 rounded-xl border border-sp-danger/20 bg-sp-danger/10 px-3.5 py-3 text-sm text-sp-danger sm:mx-6">
 
                         {saveError}
 
@@ -1227,7 +1231,7 @@ export default function EditTransactionPage() {
 
                                 <span className="sr-only">Transaction date</span>
 
-                                <div className="flex h-14 min-w-0 items-center rounded-2xl bg-[#292d2d] px-3 transition focus-within:bg-[#323636] sm:px-4">
+                                <div className="flex h-14 min-w-0 items-center rounded-2xl bg-sp-card px-3 transition focus-within:bg-sp-card sm:px-4">
 
                                     <span className="mr-2 shrink-0 text-lg text-white/45 sm:mr-3">▣</span>
 
@@ -1263,7 +1267,7 @@ export default function EditTransactionPage() {
 
                                 <span className="sr-only">Transaction time</span>
 
-                                <div className="flex h-14 min-w-0 items-center rounded-2xl bg-[#292d2d] px-3 transition focus-within:bg-[#323636] sm:px-4">
+                                <div className="flex h-14 min-w-0 items-center rounded-2xl bg-sp-card px-3 transition focus-within:bg-sp-card sm:px-4">
 
                                     <span className="mr-2 shrink-0 text-lg text-white/45 sm:mr-3">◷</span>
 
@@ -1311,7 +1315,7 @@ export default function EditTransactionPage() {
 
                                 {originalHasRealSettlement && (
 
-                                    <span className="text-xs text-amber-300/70">Locked after settlement</span>
+                                    <span className="text-xs text-sp-warning/70">Locked after settlement</span>
 
                                 )}
 
@@ -1329,7 +1333,7 @@ export default function EditTransactionPage() {
 
                                     onChange={(event) => handlePayerChange(event.target.value)}
 
-                                    className="h-14 w-full appearance-none rounded-2xl bg-[#292d2d] px-4 pr-12 text-[17px] text-white outline-none transition focus:bg-[#323636] disabled:cursor-not-allowed disabled:opacity-55"
+                                    className="h-14 w-full appearance-none rounded-2xl bg-sp-card px-4 pr-12 text-[17px] text-white outline-none transition focus:bg-sp-card disabled:cursor-not-allowed disabled:opacity-55"
 
                                 >
 
@@ -1491,7 +1495,7 @@ export default function EditTransactionPage() {
 
                                     }}
 
-                                    className="h-14 w-full appearance-none rounded-2xl bg-[#292d2d] px-4 pr-12 text-[17px] text-white outline-none transition focus:bg-[#323636]"
+                                    className="h-14 w-full appearance-none rounded-2xl bg-sp-card px-4 pr-12 text-[17px] text-white outline-none transition focus:bg-sp-card"
 
                                 >
 
@@ -1525,7 +1529,7 @@ export default function EditTransactionPage() {
 
                             {showNewContact ? (
 
-                                <div className="mt-3 rounded-2xl bg-[#292d2d] p-3">
+                                <div className="mt-3 rounded-2xl bg-sp-card p-3">
 
                                     <div className="flex min-w-0 gap-2">
 
@@ -1559,7 +1563,7 @@ export default function EditTransactionPage() {
 
                                             placeholder="Contact name"
 
-                                            className="min-w-0 w-0 flex-1 rounded-xl bg-[#1d2020] px-3.5 py-3 text-white outline-none placeholder:text-white/35 focus:ring-2 focus:ring-blue-400/30"
+                                            className="min-w-0 w-0 flex-1 rounded-xl bg-sp-bg px-3.5 py-3 text-white outline-none placeholder:text-white/35 focus:ring-2 focus:ring-sp-primary/30"
 
                                         />
 
@@ -1569,7 +1573,7 @@ export default function EditTransactionPage() {
 
                                             onClick={() => void handleCreateContact()}
 
-                                            className="shrink-0 rounded-xl bg-[#6f8ed8] px-3.5 text-sm font-semibold text-white transition hover:bg-[#7d9be2] sm:px-4"
+                                            className="shrink-0 rounded-xl bg-sp-primary px-3.5 text-sm font-semibold text-white transition hover:bg-sp-primary sm:px-4"
 
                                         >
 
@@ -1581,7 +1585,7 @@ export default function EditTransactionPage() {
 
                                     {contactError && (
 
-                                        <p className="mt-2 text-xs text-red-300">{contactError}</p>
+                                        <p className="mt-2 text-xs text-sp-danger">{contactError}</p>
 
                                     )}
 
@@ -1601,7 +1605,7 @@ export default function EditTransactionPage() {
 
                                     }}
 
-                                    className="mt-3 text-sm font-medium text-[#8da7ef] transition hover:text-white"
+                                    className="mt-3 text-sm font-medium text-sp-primary-soft transition hover:text-white"
 
                                 >
 
@@ -1629,11 +1633,11 @@ export default function EditTransactionPage() {
 
                                             key={split.id}
 
-                                            className="flex min-w-0 items-center gap-2.5 rounded-2xl bg-[#292d2d] px-3 py-3 sm:gap-3 sm:px-3.5"
+                                            className="flex min-w-0 items-center gap-2.5 rounded-2xl bg-sp-card px-3 py-3 sm:gap-3 sm:px-3.5"
 
                                         >
 
-                                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#657fbf] text-sm font-semibold text-white">
+                                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sp-primary text-sm font-semibold text-white">
 
                                                 {initials(name)}
 
@@ -1651,13 +1655,13 @@ export default function EditTransactionPage() {
 
                                                     {isPayer && (
 
-                                                        <span className="text-[#9db4f2]">Payer</span>
+                                                        <span className="text-sp-primary-soft">Payer</span>
 
                                                     )}
 
                                                     {isLocked && (
 
-                                                        <span className="text-amber-300/75">Settled</span>
+                                                        <span className="text-sp-warning/75">Settled</span>
 
                                                     )}
 
@@ -1703,7 +1707,7 @@ export default function EditTransactionPage() {
 
                             onClick={goToSplitStep}
 
-                            className="mt-7 w-full rounded-2xl bg-[#536ba6] px-5 py-4 text-[17px] font-semibold text-white shadow-lg shadow-black/10 transition hover:bg-[#607ab9] active:scale-[0.99]"
+                            className="mt-7 w-full rounded-2xl bg-sp-primary-deep px-5 py-4 text-[17px] font-semibold text-white shadow-lg shadow-black/10 transition hover:bg-sp-primary active:scale-[0.99]"
 
                         >
 
@@ -1749,7 +1753,7 @@ export default function EditTransactionPage() {
 
                                     }}
 
-                                    className="rounded-xl px-3 py-2 text-sm font-medium text-[#9db4f2] transition hover:bg-white/[0.05] hover:text-white"
+                                    className="rounded-xl px-3 py-2 text-sm font-medium text-sp-primary-soft transition hover:bg-white/[0.05] hover:text-white"
 
                                 >
 
@@ -1783,7 +1787,7 @@ export default function EditTransactionPage() {
 
                                             key={split.id}
 
-                                            className="rounded-3xl bg-[#3a3d3d] p-4 sm:p-5"
+                                            className="rounded-3xl bg-sp-surface p-4 sm:p-5"
 
                                         >
 
@@ -1863,7 +1867,7 @@ export default function EditTransactionPage() {
 
                                                     }}
 
-                                                    className="h-16 min-w-0 w-full cursor-pointer rounded-2xl bg-[#242727] pl-11 pr-3 text-xl font-medium tabular-nums text-white outline-none placeholder:text-white/20 focus:bg-[#292d2d] focus:ring-2 focus:ring-[#718bd0]/35 disabled:cursor-not-allowed disabled:text-white/35 sm:pl-12 sm:pr-4 sm:text-2xl"
+                                                    className="h-16 min-w-0 w-full cursor-pointer rounded-2xl bg-sp-bg pl-11 pr-3 text-xl font-medium tabular-nums text-white outline-none placeholder:text-white/20 focus:bg-sp-card focus:ring-2 focus:ring-sp-primary/35 disabled:cursor-not-allowed disabled:text-white/35 sm:pl-12 sm:pr-4 sm:text-2xl"
 
                                                 />
 
@@ -1871,7 +1875,7 @@ export default function EditTransactionPage() {
 
                                             {isLocked && (
 
-                                                <p className="mt-2 text-xs text-amber-300/65">
+                                                <p className="mt-2 text-xs text-sp-warning/65">
 
                                                     Settled ₹{formatMoney(split.settled_amount)} · Remaining ₹{formatMoney(remainingAfterEdit)}
 
@@ -1891,7 +1895,7 @@ export default function EditTransactionPage() {
 
                         {/* Summary */}
 
-                        <section className="mt-5 rounded-3xl bg-[#292d2d] p-5">
+                        <section className="mt-5 rounded-3xl bg-sp-card p-5">
 
                             <div className="flex items-center justify-between py-1">
 
@@ -1929,9 +1933,9 @@ export default function EditTransactionPage() {
 
                                     className={`text-[17px] font-semibold tabular-nums ${amountsMatch
 
-                                        ? "text-[#9db4f2]"
+                                        ? "text-sp-primary-soft"
 
-                                        : "text-red-400"
+                                        : "text-sp-danger"
 
                                         }`}
 
@@ -1951,7 +1955,7 @@ export default function EditTransactionPage() {
 
                         {!amountsMatch && (
 
-                            <p className="mt-3 px-2 text-center text-sm text-red-300/80">
+                            <p className="mt-3 px-2 text-center text-sm text-sp-danger/80">
 
                                 {difference < 0
 
@@ -1981,7 +1985,7 @@ export default function EditTransactionPage() {
 
                                 }}
 
-                                className="flex-1 rounded-2xl bg-[#292d2d] px-4 py-4 text-[16px] font-semibold text-white/70 transition hover:bg-[#333737] hover:text-white disabled:opacity-50"
+                                className="flex-1 rounded-2xl bg-sp-card px-4 py-4 text-[16px] font-semibold text-white/70 transition hover:bg-sp-card hover:text-white disabled:opacity-50"
 
                             >
 
@@ -1997,7 +2001,7 @@ export default function EditTransactionPage() {
 
                                 disabled={saving || !amountsMatch}
 
-                                className="flex-[1.7] rounded-2xl bg-[#536ba6] px-4 py-4 text-[16px] font-semibold text-white shadow-lg shadow-black/10 transition hover:bg-[#607ab9] disabled:cursor-not-allowed disabled:bg-[#3a404e] disabled:text-white/35"
+                                className="flex-[1.7] rounded-2xl bg-sp-primary-deep px-4 py-4 text-[16px] font-semibold text-white shadow-lg shadow-black/10 transition hover:bg-sp-primary disabled:cursor-not-allowed disabled:bg-sp-surface disabled:text-white/35"
 
                             >
 
@@ -2017,7 +2021,7 @@ export default function EditTransactionPage() {
 
                 <div
 
-                    className="fixed inset-0 z-[200] flex items-end bg-black/60"
+                    className="fixed inset-0 z-[200] flex items-end bg-black/60 animate-fade-in"
 
                     onClick={() => setKeypadTarget(null)}
 
@@ -2025,7 +2029,7 @@ export default function EditTransactionPage() {
 
                     <div
 
-                        className="w-full overflow-hidden rounded-t-[28px] bg-[#202124] shadow-2xl"
+                        className="w-full overflow-hidden rounded-t-sp-sheet bg-sp-card shadow-2xl animate-sheet-in"
 
                         onClick={(event) =>
 

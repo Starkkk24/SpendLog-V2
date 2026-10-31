@@ -17,6 +17,8 @@ from .models import Contact, Transaction, TransactionSplit, IndividualTransactio
 from .serializers import ContactSerializer, SignupSerializer, TransactionSerializer, IndividualTransactionSerializer
 
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 
 
@@ -230,27 +232,15 @@ def transaction_detail(request, pk):
         transaction_obj.delete()
         return Response(status=204)
 
-# 30-09-2026
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def balance_view(request, pk):
-
-    user = request.user
-
-    contact = get_object_or_404(
-        Contact,
-        id=pk,
-        owner=user
-    )
-
-    settled_param = request.query_params.get("settled", "false")
-    show_settled = settled_param.lower() == "true"
-
-    balance = 0
+def contact_ledger(user, contact):
+    """
+    Every expense split and individual transaction between the user and
+    a contact, newest first. `amount` is positive when the contact owes
+    the user and negative when the user owes the contact.
+    """
 
     # 1. Get all relevant expense splits.
-    #    Each split row is read once and used for both the
-    #    balance and the selected tab, so the query count
+    #    Each split row is read once, so the query count
     #    does not grow with the number of transactions.
     relevant_splits = TransactionSplit.objects.filter(
         Q(
@@ -269,51 +259,22 @@ def balance_view(request, pk):
         contact=contact
     )
 
-    # 3. Calculate balance and build combined transaction display data
-    transactions = []
+    rows = []
 
     # Existing expense transactions
     for split in relevant_splits:
 
         transaction = split.transaction
 
-        user_paid = transaction.payer_user_id == user.id
-        contact_paid = transaction.payer_contact_id == contact.id
-
-        remaining_amount = (
-            split.amount - split.settled_amount
-        )
-
-        if remaining_amount > 0:
-
-            if user_paid:
-                balance += remaining_amount
-
-            elif contact_paid:
-                balance -= remaining_amount
-
-        # Filter expense splits for selected tab
-        if show_settled:
-            visible = split.settled_amount > 0
-        else:
-            visible = split.settled_amount < split.amount
-
-        if not visible:
-            continue
-
-        is_settled = (
-            split.settled_amount == split.amount
-        )
-
-        if user_paid:
+        if transaction.payer_user_id == user.id:
             amount = split.amount
             paid_by = user.username
 
-        elif contact_paid:
+        else:
             amount = -split.amount
             paid_by = contact.name
 
-        transactions.append({
+        rows.append({
             "id": transaction.id,
             "split_id": split.id,
             "type": "expense",
@@ -322,42 +283,12 @@ def balance_view(request, pk):
             "paid_by": paid_by,
             "note": transaction.note,
             "settled_amount": split.settled_amount,
-            "remaining_amount": remaining_amount,
-            "settled": is_settled,
+            "remaining_amount": split.amount - split.settled_amount,
+            "settled": split.settled_amount == split.amount,
         })
 
     # Individual lend/borrow transactions
     for individual_transaction in all_individual_transactions:
-
-        remaining_amount = (
-            individual_transaction.amount
-            - individual_transaction.settled_amount
-        )
-
-        if remaining_amount > 0:
-
-            if individual_transaction.direction == "lend":
-                balance += remaining_amount
-
-            elif individual_transaction.direction == "borrow":
-                balance -= remaining_amount
-
-        # Filter individual transactions for selected tab
-        if show_settled:
-            visible = individual_transaction.settled_amount > 0
-        else:
-            visible = (
-                individual_transaction.settled_amount
-                < individual_transaction.amount
-            )
-
-        if not visible:
-            continue
-
-        is_settled = (
-            individual_transaction.settled_amount
-            == individual_transaction.amount
-        )
 
         if individual_transaction.direction == "lend":
             amount = individual_transaction.amount
@@ -367,7 +298,7 @@ def balance_view(request, pk):
             amount = -individual_transaction.amount
             paid_by = contact.name
 
-        transactions.append({
+        rows.append({
             "id": individual_transaction.id,
             "individual_transaction_id": individual_transaction.id,
             "type": "individual",
@@ -377,21 +308,122 @@ def balance_view(request, pk):
             "paid_by": paid_by,
             "note": individual_transaction.note,
             "settled_amount": individual_transaction.settled_amount,
-            "remaining_amount": remaining_amount,
-            "settled": is_settled,
+            "remaining_amount": (
+                individual_transaction.amount
+                - individual_transaction.settled_amount
+            ),
+            "settled": (
+                individual_transaction.settled_amount
+                == individual_transaction.amount
+            ),
         })
 
-    # 4. Sort combined transactions newest first
-    transactions.sort(
-        key=lambda transaction: transaction["date"],
+    # 3. Sort combined transactions newest first
+    rows.sort(
+        key=lambda row: row["date"],
         reverse=True
     )
+
+    return rows
+
+
+def ledger_balance(rows):
+    # Only the unsettled part of each row counts toward the balance.
+    return sum(
+        (
+            row["remaining_amount"] if row["amount"] > 0
+            else -row["remaining_amount"]
+        )
+        for row in rows
+        if row["remaining_amount"] > 0
+    )
+
+
+# 30-09-2026
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def balance_view(request, pk):
+
+    user = request.user
+
+    contact = get_object_or_404(
+        Contact,
+        id=pk,
+        owner=user
+    )
+
+    settled_param = request.query_params.get("settled", "false")
+    show_settled = settled_param.lower() == "true"
+
+    rows = contact_ledger(user, contact)
+
+    # Filter for selected tab. Partially settled rows appear in both.
+    if show_settled:
+        transactions = [row for row in rows if row["settled_amount"] > 0]
+    else:
+        transactions = [row for row in rows if row["remaining_amount"] > 0]
 
     return Response({
         "contact_id": contact.id,
         "contact_name": contact.name,
-        "balance": balance,
+        "balance": ledger_balance(rows),
         "transactions": transactions,
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def statement_view(request, pk):
+    """
+    Rows for a shareable statement.
+
+    ?status=unsettled|settled|all  (default unsettled; settled means fully settled)
+    ?from=<ISO datetime>&to=<ISO datetime>  (optional, from inclusive, to exclusive)
+    """
+
+    user = request.user
+
+    contact = get_object_or_404(
+        Contact,
+        id=pk,
+        owner=user
+    )
+
+    status = request.query_params.get("status", "unsettled")
+    if status not in ("unsettled", "settled", "all"):
+        return Response({"error": "Invalid status."}, status=400)
+
+    bounds = {}
+    for param in ("from", "to"):
+        value = request.query_params.get(param)
+        if not value:
+            continue
+
+        parsed = parse_datetime(value)
+        if parsed is None or timezone.is_naive(parsed):
+            return Response(
+                {"error": f"'{param}' must be an ISO datetime with a timezone."},
+                status=400,
+            )
+        bounds[param] = parsed
+
+    rows = contact_ledger(user, contact)
+
+    if status == "unsettled":
+        rows = [row for row in rows if not row["settled"]]
+    elif status == "settled":
+        rows = [row for row in rows if row["settled"]]
+
+    if "from" in bounds:
+        rows = [row for row in rows if row["date"] >= bounds["from"]]
+    if "to" in bounds:
+        rows = [row for row in rows if row["date"] < bounds["to"]]
+
+    return Response({
+        "contact_id": contact.id,
+        "contact_name": contact.name,
+        "balance": ledger_balance(rows),
+        "transactions": rows,
     })
 
 

@@ -1,11 +1,15 @@
 "use client";
 
+import { toast } from "@/components/ui/Toast";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signup } from "@/services/auth";
 import axios from "axios";
-import { Eye, EyeOff } from "lucide-react";
+import AuthShell from "@/components/auth/AuthShell";
+import Button from "@/components/ui/Button";
+import { Field, Input } from "@/components/ui/Input";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 export default function SignupPage() {
     const [username, setUsername] = useState("");
@@ -32,7 +36,7 @@ export default function SignupPage() {
         try {
             await signup(username.trim(), password, password2);
 
-            alert("Account created successfully!");
+            toast.success("Account created successfully!");
 
             router.push("/login");
         } catch (error) {
@@ -51,93 +55,71 @@ export default function SignupPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-800">
-
-            <form
-                onSubmit={handleSubmit}
-                className="w-full max-w-sm bg-gray-700 p-8 rounded-xl shadow-lg space-y-5"
-            >
-                <h1 className="text-3xl font-bold text-center">
-                    Sign Up
-                </h1>
-
-                <input
-                    type="text"
-                    placeholder="Username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full border rounded-lg p-3"
-                    required
-                />
-                {errors.username && (
-                    <p className="text-red-400 text-sm">
-                        {errors.username}
-                    </p>
-                )}
-
-                <div className="relative">
-                    <input
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full border rounded-lg p-3 pr-12"
-                        required
-                    />
-                    <button
-                        type="button"
-                        onClick={() => setShowPassword((visible) => !visible)}
-                        className="absolute inset-y-0 right-3 flex items-center text-sp-muted transition hover:text-white"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                </div>
-
-                <div className="relative">
-                    <input
-                        type={showPassword2 ? "text" : "password"}
-                        placeholder="Confirm Password"
-                        value={password2}
-                        onChange={(e) => setPassword2(e.target.value)}
-                        className="w-full border rounded-lg p-3 pr-12"
-                        required
-                    />
-                    <button
-                        type="button"
-                        onClick={() => setShowPassword2((visible) => !visible)}
-                        className="absolute inset-y-0 right-3 flex items-center text-sp-muted transition hover:text-white"
-                        aria-label={showPassword2 ? "Hide password" : "Show password"}
-                    >
-                        {showPassword2 ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                </div>
-                {errors.password && (
-                    <p className="text-red-400 text-sm">
-                        {errors.password}
-                    </p>
-                )}
-
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
-                >
-                    {loading ? "Creating account..." : "Sign Up"}
-                </button>
-
-                <p className="text-center text-sm text-gray-300">
+        <AuthShell
+            title="Create account"
+            subtitle="Start logging and splitting in seconds."
+            footer={
+                <>
                     Already have an account?{" "}
-                    <Link
-                        href="/login"
-                        className="font-medium text-blue-400 hover:text-blue-300 hover:underline"
-                    >
+                    <Link href="/login" className="font-semibold text-sp-primary hover:underline">
                         Log in
                     </Link>
-                </p>
+                </>
+            }
+        >
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <Field label="Username" error={errors.username}>
+                    {(id) => (
+                        <Input
+                            id={id}
+                            type="text"
+                            placeholder="Username"
+                            autoComplete="username"
+                            autoCapitalize="none"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            invalid={!!errors.username}
+                            required
+                        />
+                    )}
+                </Field>
 
+                <Field label="Password">
+                    {(id) => (
+                        <PasswordInput
+                            id={id}
+                            placeholder="Password"
+                            autoComplete="new-password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            invalid={!!errors.password}
+                            visible={showPassword}
+                            onToggle={() => setShowPassword((visible) => !visible)}
+                            required
+                        />
+                    )}
+                </Field>
+
+                <Field label="Confirm password" error={errors.password}>
+                    {(id) => (
+                        <PasswordInput
+                            id={id}
+                            placeholder="Confirm Password"
+                            autoComplete="new-password"
+                            value={password2}
+                            onChange={(e) => setPassword2(e.target.value)}
+                            invalid={!!errors.password}
+                            visible={showPassword2}
+                            onToggle={() => setShowPassword2((visible) => !visible)}
+                            required
+                        />
+                    )}
+                </Field>
+
+                <Button type="submit" size="lg" block loading={loading} className="mt-2">
+                    Sign Up
+                </Button>
             </form>
-
-        </div>
+        </AuthShell>
     );
 }

@@ -18,3 +18,17 @@ export async function getProfileBalance() {
 
     return response.data;
 }
+
+export type StatementStatus = "unsettled" | "settled" | "all";
+
+export async function getStatement(
+    contactId: number,
+    params: { status: StatementStatus; from?: string; to?: string }
+) {
+    const response = await api.get(
+        `/contacts/${contactId}/statement/`,
+        { params }
+    );
+
+    return response.data;
+}

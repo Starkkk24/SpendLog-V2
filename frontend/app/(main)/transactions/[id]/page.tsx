@@ -12,6 +12,28 @@ import {
 } from "@/services/transactions";
 import { deleteTransaction } from "@/services/transactions";
 import EditTransactionModal from "@/components/transactions/EditTransactionModel";
+import Avatar from "@/components/ui/Avatar";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import EmptyState from "@/components/ui/EmptyState";
+import { Field, Input } from "@/components/ui/Input";
+import Sheet from "@/components/ui/Sheet";
+import { CardSkeleton, ListSkeleton } from "@/components/ui/Skeleton";
+import { toast } from "@/components/ui/Toast";
+import PageHeader from "@/components/navigation/PageHeader";
+import { useRetained } from "@/hooks/useOverlay";
+import { cn } from "@/lib/cn";
+import {
+    CalendarDays,
+    Check,
+    CheckCheck,
+    ChevronLeft,
+    Pencil,
+    RotateCw,
+    SearchX,
+    Trash2,
+    Undo2,
+} from "lucide-react";
 
 type Split = {
     id: number;
@@ -83,6 +105,7 @@ export default function TransactionDetailPage() {
     const [settleSplitId, setSettleSplitId] = useState<number | null>(null);
     const [settleAmount, setSettleAmount] = useState("");
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const retainedSettleSplitId = useRetained(settleSplitId);
 
 
     function canSettle(split: Split) {
@@ -132,21 +155,25 @@ export default function TransactionDetailPage() {
         }
 
     }
-    async function handleDelete() {
+    function handleDelete() {
         if (!transaction) return;
 
-        const confirmed = window.confirm(
-            "Delete this transaction?\n\nThis will permanently remove the transaction, all splits, and their settlement information."
-        );
+        toast.action("Delete this transaction and all its splits?", {
+            label: "Delete",
+            destructive: true,
+            onClick: () => void confirmDelete(transaction.id),
+        });
+    }
 
-        if (!confirmed) return;
-
+    async function confirmDelete(id: number) {
         try {
-            await deleteTransaction(transaction.id);
+            await deleteTransaction(id);
             await invalidateFinancialData();
+            toast.success("Transaction deleted");
             router.push("/transactions");
         } catch (error) {
             console.error("Failed to delete transaction:", error);
+            toast.error("Couldn't delete the transaction");
         }
     }
 
@@ -178,11 +205,11 @@ export default function TransactionDetailPage() {
 
     if (loading) {
         return (
-            <main className="min-h-screen bg-sp-bg px-4 pb-24 pt-6 text-white sm:px-6">
-                <div className="mx-auto max-w-3xl">
-                    <p className="text-sm text-sp-muted">
-                        Loading transaction...
-                    </p>
+            <main className="page">
+                <PageHeader title="Transaction" onBack={() => router.push("/transactions")} />
+                <div className="space-y-6">
+                    <CardSkeleton />
+                    <ListSkeleton rows={3} />
                 </div>
             </main>
         );
@@ -190,28 +217,27 @@ export default function TransactionDetailPage() {
 
     if (isError || !transaction) {
         return (
-            <main className="min-h-screen bg-sp-bg px-4 pb-24 pt-6 text-white sm:px-6">
-                <div className="mx-auto max-w-3xl">
-                    <h1 className="text-xl font-semibold text-white">
-                        Transaction not found
-                    </h1>
+            <main className="page">
+                <PageHeader title="Transaction" onBack={() => router.push("/transactions")} />
+                <EmptyState
+                    icon={SearchX}
+                    title="Transaction not found"
+                    action={
+                        <div className="flex flex-col items-center gap-2">
+                            <Button variant="secondary" onClick={() => router.push("/transactions")}>
+                                <ChevronLeft size={16} />
+                                Back to transactions
+                            </Button>
 
-                    <button
-                        onClick={() => router.push("/transactions")}
-                        className="mt-4 text-sm font-medium text-sp-primary hover:text-white"
-                    >
-                        ← Back to transactions
-                    </button>
-
-                    {isError && (
-                        <button
-                            onClick={() => void refreshTransaction()}
-                            className="mt-4 block text-sm text-sp-primary hover:text-white"
-                        >
-                            Try again
-                        </button>
-                    )}
-                </div>
+                            {isError && (
+                                <Button variant="ghost" onClick={() => void refreshTransaction()}>
+                                    <RotateCw size={16} />
+                                    Try again
+                                </Button>
+                            )}
+                        </div>
+                    }
+                />
             </main>
         );
     }
@@ -225,230 +251,209 @@ export default function TransactionDetailPage() {
         0
     );
 
+    const formatINR = (value: number) =>
+        value.toLocaleString("en-IN", {
+            minimumFractionDigits: 2,
+        });
+
+    const settledPercent =
+        settledTotal + remainingTotal > 0
+            ? (settledTotal / (settledTotal + remainingTotal)) * 100
+            : 0;
+
     return (
-        <main className="min-h-screen bg-sp-bg px-4 pb-24 pt-6 text-white sm:px-6">
-            <div className="mx-auto max-w-3xl">
+        <main className="page">
+            <PageHeader
+                title="Transaction"
+                onBack={() => router.push("/transactions")}
+                actions={
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => setIsEditModalOpen(true)}
+                            aria-label="Edit transaction"
+                            className="grid size-10 place-items-center rounded-full text-sp-text transition hover:bg-white/5 active:scale-90"
+                        >
+                            <Pencil size={19} />
+                        </button>
 
-                {/* Back */}
-                <button
-                    onClick={() => router.push("/transactions")}
-                    className="text-sm font-medium text-sp-muted transition hover:text-white"
-                >
-                    ← Transactions
-                </button>
+                        <button
+                            type="button"
+                            onClick={handleDelete}
+                            aria-label="Delete transaction"
+                            className="grid size-10 place-items-center rounded-full text-sp-danger transition hover:bg-sp-danger/10 active:scale-90"
+                        >
+                            <Trash2 size={19} />
+                        </button>
+                    </>
+                }
+            />
 
-                <div className="ml-4 flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={() => setIsEditModalOpen(true)}
-                        className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-white/70 transition hover:border-white/20 hover:bg-white/[0.06] hover:text-white"
-                    >
-                        Edit
-                    </button>
+            {/* Transaction Summary */}
+            <Card className="relative animate-rise-in overflow-hidden p-5">
+                <div
+                    aria-hidden
+                    className="pointer-events-none absolute -top-20 -right-16 size-56 rounded-full bg-sp-primary/15 blur-3xl"
+                />
 
-                    <button
-                        type="button"
-                        onClick={handleDelete}
-                        className="rounded-lg border border-red-500/20 bg-red-500/[0.04] px-4 py-2 text-sm font-medium text-red-400 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300"
-                    >
-                        Delete
-                    </button>
-                </div>
+                <div className="relative">
+                    <h1 className="text-lg font-semibold leading-snug text-sp-text">
+                        {transaction.note || "Untitled transaction"}
+                    </h1>
 
-                {/* Transaction Summary */}
-                <div className="mt-8">
-                    <div className="flex items-start justify-between gap-6">
-                        <div className="min-w-0">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-sp-muted">
-                                Transaction
-                            </p>
+                    <p className="mt-1 flex items-center gap-1.5 text-sm text-sp-muted">
+                        <CalendarDays size={14} />
+                        {new Date(
+                            transaction.transaction_datetime
+                        ).toLocaleString("en-IN")}
+                    </p>
 
-                            <h1 className="mt-2 truncate text-2xl font-semibold text-white">
-                                {transaction.note || "Untitled transaction"}
-                            </h1>
+                    <p className="tabular mt-5 text-4xl font-bold tracking-tight text-sp-text">
+                        ₹
+                        {formatINR(Number(transaction.total_amount))}
+                    </p>
 
-                            <p className="mt-2 text-sm text-sp-muted">
-                                {new Date(
-                                    transaction.transaction_datetime
-                                ).toLocaleString("en-IN")}
-                            </p>
-                        </div>
-
-                        <div className="shrink-0 text-right">
-                            <p className="text-2xl font-semibold tabular-nums text-white">
-                                ₹
-                                {Number(transaction.total_amount).toLocaleString("en-IN", {
-                                    minimumFractionDigits: 2,
-                                })}
-                            </p>
-
-                            <p className="mt-1 text-sm tabular-nums text-sp-muted">
-                                ₹
-                                {settledTotal.toLocaleString("en-IN", {
-                                    minimumFractionDigits: 2,
-                                })}{" "}
-                                settled
-                            </p>
-
-                            <p className="mt-1 text-sm tabular-nums text-sp-muted">
-                                ₹
-                                {remainingTotal.toLocaleString("en-IN", {
-                                    minimumFractionDigits: 2,
-                                })}{" "}
-                                remaining
-                            </p>
-                        </div>
+                    <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/5">
+                        <div
+                            className="h-full rounded-full bg-sp-success/70 transition-[width] duration-(--dur-slow)"
+                            style={{ width: `${settledPercent}%` }}
+                        />
                     </div>
 
-                    {/* Paid By */}
-                    <div className="mt-8 border-y border-white/5 py-4">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-sp-muted">
+                    <div className="tabular mt-2 flex justify-between text-sm">
+                        <span className="text-sp-success">
+                            ₹
+                            {formatINR(settledTotal)}{" "}
+                            settled
+                        </span>
+
+                        <span className="text-sp-muted">
+                            ₹
+                            {formatINR(remainingTotal)}{" "}
+                            remaining
+                        </span>
+                    </div>
+                </div>
+
+                {/* Paid By */}
+                <div className="relative mt-5 flex items-center gap-3 border-t border-sp-border pt-4">
+                    <Avatar
+                        name={transaction.payer_user_name ||
+                            transaction.payer_contact_name || "?"}
+                        className="size-9 text-xs"
+                    />
+                    <div className="min-w-0">
+                        <p className="text-xs font-medium uppercase tracking-wider text-sp-muted">
                             Paid by
                         </p>
 
-                        <p className="mt-1 text-sm font-medium text-white">
+                        <p className="truncate text-[15px] font-medium text-sp-text">
                             {transaction.payer_user_name ||
                                 transaction.payer_contact_name}
                         </p>
                     </div>
                 </div>
+            </Card>
 
-                {/* Splits */}
-                <div className="mt-8">
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-sp-muted">
-                        Splits
-                    </p>
+            {/* Splits */}
+            <section className="mt-6">
+                <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-sp-muted">
+                    Splits · {transaction.splits.length}
+                </h2>
 
-                    <div>
-                        {transaction.splits.map((split) => (
-                            <div
-                                key={`${split.user ?? "u"}-${split.contact ?? "c"}`}
-                                className="flex items-center gap-4 border-b border-white/5 py-4"
-                            >
-                                {/* Participant */}
-                                <div className="flex min-w-0 flex-1 items-center gap-4">
-                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sp-primary-deep text-sm font-semibold text-white">
-                                        {(split.contact_name ||
-                                            split.user_name ||
-                                            "?")
-                                            .charAt(0)
-                                            .toUpperCase()}
-                                    </div>
+                <div className="divide-y divide-sp-border overflow-hidden rounded-sp-lg border border-sp-border bg-sp-card">
+                    {transaction.splits.map((split, index) => (
+                        <div
+                            key={`${split.user ?? "u"}-${split.contact ?? "c"}`}
+                            style={{ animationDelay: `${Math.min(index, 10) * 30 + 60}ms` }}
+                            className="flex animate-rise-in items-center gap-3 px-4 py-3.5"
+                        >
+                            {/* Participant */}
+                            <Avatar name={split.contact_name ||
+                                split.user_name ||
+                                "?"} />
 
-                                    <div className="min-w-0">
-                                        {split.contact ? (
-                                            <Link
-                                                href={`/contacts/${split.contact}`}
-                                                className="block truncate text-sm font-medium text-white transition hover:text-sp-primary"
-                                            >
-                                                {split.contact_name}
-                                            </Link>
-                                        ) : (
-                                            <p className="truncate text-sm font-medium text-white">
-                                                {split.user_name}
-                                            </p>
+                            <div className="min-w-0 flex-1">
+                                {split.contact ? (
+                                    <Link
+                                        href={`/contacts/${split.contact}`}
+                                        className="block truncate text-[15px] font-medium text-sp-text transition hover:text-sp-primary"
+                                    >
+                                        {split.contact_name}
+                                    </Link>
+                                ) : (
+                                    <p className="truncate text-[15px] font-medium text-sp-text">
+                                        {split.user_name}
+                                    </p>
+                                )}
+
+                                <p className="tabular mt-0.5 truncate text-xs text-sp-muted">
+                                    <span
+                                        className={cn(
+                                            "mr-1 inline-flex items-center gap-1 font-medium",
+                                            split.settled ? "text-sp-success" : "text-sp-warning"
                                         )}
-
-                                        <p
-                                            className={`mt-1 text-xs ${split.settled
-                                                ? "text-sp-success"
-                                                : "text-sp-muted"
-                                                }`}
-                                        >
-                                            {split.settled
-                                                ? "Settled"
-                                                : "Unsettled"}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Amount + Action */}
-                                <div className="flex shrink-0 items-center gap-3">
-
-                                    <div className="text-right">
-                                        <p className="text-sm font-semibold tabular-nums text-white">
-                                            ₹
-                                            {Number(split.amount).toLocaleString("en-IN", {
-                                                minimumFractionDigits: 2,
-                                            })}
-                                        </p>
-
-                                        <p className="mt-1 text-xs tabular-nums text-sp-muted">
-                                            ₹
-                                            {Number(split.settled_amount).toLocaleString("en-IN", {
-                                                minimumFractionDigits: 2,
-                                            })}{" "}
-                                            settled
-                                        </p>
-
-                                        <p className="mt-1 text-xs tabular-nums text-sp-muted">
-                                            ₹
-                                            {Number(split.remaining_amount).toLocaleString("en-IN", {
-                                                minimumFractionDigits: 2,
-                                            })}{" "}
-                                            remaining
-                                        </p>
-                                    </div>
-
-                                    {canSettle(split) && (
-                                        <button
-                                            onClick={() =>
-                                                split.settled
-                                                    ? handleUnsettle(split.id)
-                                                    : openSettleModal(split.id)
-                                            }
-                                            className={`rounded-xl px-3 py-2 text-xs font-medium transition ${split.settled
-                                                ? "bg-yellow-600 hover:bg-yellow-500"
-                                                : "bg-sp-primary hover:bg-sp-primary-deep"
-                                                }`}
-                                        >
-                                            {split.settled ? "UNSETTLE" : "SETTLE"}
-                                        </button>
-                                    )}
-
-                                </div>
+                                    >
+                                        <span className="size-1.5 rounded-full bg-current" />
+                                        {split.settled
+                                            ? "Settled"
+                                            : "Unsettled"}
+                                    </span>
+                                    · ₹{formatINR(Number(split.settled_amount))} settled · ₹{formatINR(Number(split.remaining_amount))} remaining
+                                </p>
                             </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-            {settleSplitId !== null && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-                    <div className="w-full max-w-sm rounded-2xl bg-sp-surface p-5">
 
-                        <div className="mb-5 flex items-center justify-between">
-                            <h2 className="text-lg font-semibold">
-                                Settle
-                            </h2>
+                            {/* Amount + Action */}
+                            <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                <p className="tabular text-[15px] font-semibold text-sp-text">
+                                    ₹
+                                    {formatINR(Number(split.amount))}
+                                </p>
 
-                            <button
-                                onClick={closeSettleModal}
-                                className="text-sm text-sp-muted hover:text-white"
-                            >
-                                ✕
-                            </button>
+                                {canSettle(split) && (
+                                    <Button
+                                        size="sm"
+                                        variant={split.settled ? "secondary" : "primary"}
+                                        className="h-8 px-2.5 text-xs"
+                                        onClick={() =>
+                                            split.settled
+                                                ? handleUnsettle(split.id)
+                                                : openSettleModal(split.id)
+                                        }
+                                    >
+                                        {split.settled ? <Undo2 size={13} /> : <Check size={13} />}
+                                        {split.settled ? "Unsettle" : "Settle"}
+                                    </Button>
+                                )}
+                            </div>
                         </div>
+                    ))}
+                </div>
+            </section>
 
-                        <p className="text-sm text-sp-muted">
+            <Sheet open={settleSplitId !== null} onClose={closeSettleModal} title="Settle">
+                <div className="px-5 pb-5">
+                    <div className="rounded-sp-md bg-sp-card p-4 ring-1 ring-sp-border">
+                        <p className="text-xs font-medium uppercase tracking-wider text-sp-muted">
                             Remaining
                         </p>
 
-                        <p className="mt-1 text-2xl font-semibold">
+                        <p className="tabular mt-1 text-3xl font-bold tracking-tight text-sp-text">
                             ₹
                             {Number(
                                 transaction.splits.find(
-                                    (split) => split.id === settleSplitId
+                                    (split) => split.id === retainedSettleSplitId
                                 )?.remaining_amount ?? 0
                             ).toFixed(2)}
                         </p>
+                    </div>
 
-                        <div className="mt-5">
-                            <label className="text-sm text-sp-muted">
-                                Amount
-                            </label>
-
-                            <input
+                    <Field label="Amount" className="mt-5">
+                        {(id) => (
+                            <Input
+                                id={id}
                                 type="number"
+                                inputMode="decimal"
                                 min="0"
                                 step="0.01"
                                 value={settleAmount}
@@ -456,27 +461,23 @@ export default function TransactionDetailPage() {
                                     setSettleAmount(e.target.value)
                                 }
                                 placeholder="Enter amount"
-                                className="mt-2 w-full rounded-xl bg-sp-bg px-4 py-3 text-white outline-none ring-1 ring-white/10 focus:ring-sp-primary"
+                                className="tabular"
                             />
-                        </div>
+                        )}
+                    </Field>
 
-                        <button
-                            onClick={handleSettleAmount}
-                            className="mt-5 w-full rounded-xl bg-sp-primary px-4 py-3 text-sm font-medium transition hover:bg-sp-primary-deep"
-                        >
+                    <div className="mt-5 grid gap-2">
+                        <Button size="lg" onClick={handleSettleAmount}>
                             Settle Amount
-                        </button>
+                        </Button>
 
-                        <button
-                            onClick={handleSettleCompletely}
-                            className="mt-2 w-full rounded-xl bg-sp-primary-deep px-4 py-3 text-sm font-medium transition hover:bg-sp-primary"
-                        >
+                        <Button size="lg" variant="secondary" onClick={handleSettleCompletely}>
+                            <CheckCheck size={18} />
                             Settle Completely
-                        </button>
-
+                        </Button>
                     </div>
                 </div>
-            )}
+            </Sheet>
 
             {isEditModalOpen && (
                 <EditTransactionModal

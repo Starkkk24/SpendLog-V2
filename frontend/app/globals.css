@@ -2,14 +2,43 @@
 
 :root {
     --sp-bg: #2C302E;
+    --sp-card: #363A38;
     --sp-surface: #474A48;
+    --sp-border: rgb(255 255 255 / 0.08);
     --sp-primary: #677DB7;
     --sp-primary-deep: #454B66;
+    --sp-primary-soft: #B7C4E6;
     --sp-muted: #909590;
+    --sp-text: #F4F5F4;
     --sp-success: #9AE19D;
+    --sp-danger: #F28B82;
+    --sp-warning: #F2C46D;
 
     --background: var(--sp-bg);
-    --foreground: #FFFFFF;
+    --foreground: var(--sp-text);
+
+    /* Layering scale: use as z-(--z-sheet) etc. */
+    --z-header: 30;
+    --z-nav: 40;
+    --z-fab: 45;
+    --z-overlay: 100;
+    --z-sheet: 110;
+    --z-dialog: 120;
+    --z-toast: 200;
+
+    /* Motion */
+    --dur-fast: 150ms;
+    --dur-base: 220ms;
+    --dur-slow: 320ms;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* Layout */
+    --nav-h: 4.5rem;
+    --header-h: 3.5rem;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @theme inline {
@@ -17,18 +46,146 @@
     --color-foreground: var(--foreground);
 
     --color-sp-bg: var(--sp-bg);
+    --color-sp-card: var(--sp-card);
     --color-sp-surface: var(--sp-surface);
+    --color-sp-border: var(--sp-border);
     --color-sp-primary: var(--sp-primary);
     --color-sp-primary-deep: var(--sp-primary-deep);
+    --color-sp-primary-soft: var(--sp-primary-soft);
     --color-sp-muted: var(--sp-muted);
+    --color-sp-text: var(--sp-text);
     --color-sp-success: var(--sp-success);
+    --color-sp-danger: var(--sp-danger);
+    --color-sp-warning: var(--sp-warning);
 
     --font-sans: var(--font-geist-sans);
     --font-mono: var(--font-geist-mono);
+
+    --radius-sp-sm: 0.625rem;
+    --radius-sp-md: 0.875rem;
+    --radius-sp-lg: 1.25rem;
+    --radius-sp-sheet: 1.75rem;
+
+    --shadow-sp-card: 0 1px 2px rgb(0 0 0 / 0.25), 0 4px 16px -4px rgb(0 0 0 / 0.25);
+    --shadow-sp-float: 0 8px 28px -6px rgb(0 0 0 / 0.5);
+
+    --animate-fade-in: fade-in var(--dur-base) var(--ease-out) both;
+    --animate-fade-out: fade-out var(--dur-fast) var(--ease-in) both;
+    --animate-sheet-in: sheet-in var(--dur-slow) var(--ease-out) both;
+    --animate-sheet-out: sheet-out var(--dur-base) var(--ease-in) both;
+    --animate-pop-in: pop-in var(--dur-base) var(--ease-out) both;
+    --animate-pop-out: pop-out var(--dur-fast) var(--ease-in) both;
+    --animate-rise-in: rise-in var(--dur-slow) var(--ease-out) both;
+    --animate-toast-in: toast-in var(--dur-slow) var(--ease-spring) both;
+    --animate-shimmer: shimmer 1.4s linear infinite;
 }
 
-body {
-    background: var(--background);
-    color: var(--foreground);
-    font-family: Arial, Helvetica, sans-serif;
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes fade-out { to { opacity: 0; } }
+@keyframes sheet-in { from { transform: translateY(100%); } }
+@keyframes sheet-out { to { transform: translateY(100%); } }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.95); } }
+@keyframes pop-out { to { opacity: 0; transform: scale(0.97); } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-12px) scale(0.96); } }
+@keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+}
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+        -webkit-text-size-adjust: 100%;
+        color-scheme: dark;
+    }
+
+    body {
+        background: var(--background);
+        color: var(--foreground);
+        font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+        overscroll-behavior-y: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    button,
+    [role="button"],
+    a {
+        touch-action: manipulation;
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--sp-primary);
+        outline-offset: 2px;
+    }
+
+    ::selection {
+        background: color-mix(in srgb, var(--sp-primary) 45%, transparent);
+    }
+}
+
+@utility tabular {
+    font-variant-numeric: tabular-nums;
+}
+
+@utility pb-safe {
+    padding-bottom: var(--safe-bottom);
+}
+
+@utility pt-safe {
+    padding-top: var(--safe-top);
+}
+
+/* Room for the fixed bottom nav plus the home indicator. */
+@utility pb-nav {
+    padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 1.5rem);
+}
+
+@utility scroll-area {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Route crossfade (React <ViewTransition>); quick so navigation stays snappy. */
+::view-transition-group(*) {
+    animation-duration: var(--dur-base);
+    animation-timing-function: var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(*),
+    ::view-transition-new(*),
+    ::view-transition-group(*) {
+        animation-duration: 0s !important;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+@keyframes progress {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(300%); }
+}
+
+/* Shared content column for every page in the app shell. */
+@utility page {
+    width: 100%;
+    max-width: 42rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
+}
+
+/* Section labels that pin just below the scrolled PageHeader. */
+@utility sticky-under-header {
+    position: sticky;
+    top: calc(var(--safe-top) + var(--header-h) + 1px);
+    z-index: 10;
 }

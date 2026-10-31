@@ -20,30 +20,20 @@ export const metadata: Metadata = {
   description: "Track expenses and split bills with ease.",
   applicationName: "SpendLog",
   manifest: "/manifest.webmanifest",
-  icons: {
-    icon: [
-      {
-        url: "/icons/icon-192.png",
-        sizes: "192x192",
-        type: "image/png",
-      },
-      {
-        url: "/icons/icon-512.png",
-        sizes: "512x512",
-        type: "image/png",
-      },
-    ],
-    apple: "/icons/icon-192.png",
-  },
+  // Favicon and home-screen icons come from app/favicon.ico, app/icon.svg
+  // and app/apple-icon.png (Next.js file conventions).
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "SpendLog",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#17191b",
+  themeColor: "#2C302E",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

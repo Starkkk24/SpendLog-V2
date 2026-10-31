@@ -10,9 +10,14 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { LogOut, User } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, LogOut, User, WifiOff } from "lucide-react";
 import { getCurrentUser, logout } from "@/services/auth";
 import { getProfileBalance } from "@/services/balance";
+import Card from "@/components/ui/Card";
+import EmptyState from "@/components/ui/EmptyState";
+import { CardSkeleton } from "@/components/ui/Skeleton";
+import PageHeader from "@/components/navigation/PageHeader";
+import { cn } from "@/lib/cn";
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -43,16 +48,25 @@ export default function ProfilePage() {
 
     if (isPending || balancePending) {
         return (
-            <main className="min-h-screen bg-sp-bg p-6 text-white">
-                Loading profile...
+            <main className="page">
+                <PageHeader title="Profile" subtitle="Your account" />
+                <div className="space-y-4">
+                    <CardSkeleton />
+                    <CardSkeleton />
+                </div>
             </main>
         );
     }
 
     if (isError || balanceError) {
         return (
-            <main className="min-h-screen bg-sp-bg p-6 text-white">
-                Failed to load profile. Please refresh the page.
+            <main className="page">
+                <PageHeader title="Profile" />
+                <EmptyState
+                    icon={WifiOff}
+                    title="Failed to load profile."
+                    description="Please refresh the page."
+                />
             </main>
         );
     }
@@ -72,29 +86,31 @@ export default function ProfilePage() {
     const balanceNegative = profileBalance < 0;
 
     return (
-        <main className="min-h-screen bg-sp-bg px-4 pb-24 pt-6 text-white sm:px-6">
-            <div className="mx-auto max-w-2xl">
+        <main className="page">
+            <PageHeader title="Profile" subtitle="Your account" />
 
-                {/* Header */}
-                <div className="mb-6">
-                    <h1 className="text-2xl font-semibold">
-                        Profile
-                    </h1>
+            <div className="space-y-4">
+                {/* User + Overall Balance */}
+                <Card className="relative animate-rise-in overflow-hidden p-5">
+                    <div
+                        aria-hidden
+                        className={cn(
+                            "pointer-events-none absolute -top-20 -right-16 size-56 rounded-full blur-3xl",
+                            balancePositive
+                                ? "bg-sp-success/15"
+                                : balanceNegative
+                                    ? "bg-sp-danger/15"
+                                    : "bg-sp-primary/15"
+                        )}
+                    />
 
-                    <p className="mt-1 text-sm text-sp-muted">
-                        Your account
-                    </p>
-                </div>
-
-                {/* User */}
-                <div className="rounded-2xl bg-sp-surface p-5">
-                    <div className="flex items-center gap-4">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-sp-primary-deep">
-                            <User size={26} />
+                    <div className="relative flex items-center gap-3">
+                        <div className="grid size-12 place-items-center rounded-full bg-sp-primary/20 text-sp-primary-soft">
+                            <User size={24} />
                         </div>
 
-                        <div>
-                            <p className="text-lg font-semibold">
+                        <div className="min-w-0">
+                            <p className="truncate text-lg font-semibold text-sp-text">
                                 {username || "Your Account"}
                             </p>
 
@@ -103,85 +119,101 @@ export default function ProfilePage() {
                             </p>
                         </div>
                     </div>
-                </div>
 
-                {/* Overall Balance */}
-                <div className="mt-4 rounded-2xl bg-sp-surface p-5">
-                    <p className="text-sm text-sp-muted">
-                        Overall Balance
-                    </p>
+                    <div className="relative mt-6">
+                        <p className="text-xs font-medium uppercase tracking-wider text-sp-muted">
+                            Overall Balance
+                        </p>
 
-                    <p
-                        className={`mt-2 text-3xl font-semibold ${balancePositive
-                            ? "text-green-400"
-                            : balanceNegative
-                                ? "text-red-400"
-                                : "text-white"
-                            }`}
-                    >
-                        {profileBalance >= 0 ? "+" : "-"}₹
-                        {Math.abs(profileBalance).toFixed(2)}
-                    </p>
+                        <p
+                            className={cn(
+                                "tabular mt-1 text-4xl font-bold tracking-tight",
+                                balancePositive
+                                    ? "text-sp-success"
+                                    : balanceNegative
+                                        ? "text-sp-danger"
+                                        : "text-sp-text"
+                            )}
+                        >
+                            {profileBalance >= 0 ? "+" : "-"}₹
+                            {Math.abs(profileBalance).toFixed(2)}
+                        </p>
 
-                    <p className="mt-1 text-sm text-sp-muted">
-                        {balancePositive
-                            ? "People owe you"
-                            : balanceNegative
-                                ? "You owe people"
-                                : "All accounts are balanced"}
-                    </p>
-                </div>
+                        <p className="mt-1 text-sm text-sp-muted">
+                            {balancePositive
+                                ? "People owe you"
+                                : balanceNegative
+                                    ? "You owe people"
+                                    : "All accounts are balanced"}
+                        </p>
+                    </div>
+                </Card>
 
                 {/* Financial Summary */}
-                <div className="mt-4 rounded-2xl bg-sp-surface p-5">
-                    <p className="mb-4 text-sm text-sp-muted">
+                <section className="animate-rise-in [animation-delay:60ms]">
+                    <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-sp-muted">
                         Financial Summary
-                    </p>
+                    </h2>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
 
                         {/* Lent */}
-                        <div className="rounded-xl bg-sp-bg p-4">
-                            <p className="text-sm text-sp-muted">
+                        <Card className="p-4">
+                            <div className="flex items-center gap-2 text-sm text-sp-muted">
+                                <span className="grid size-7 place-items-center rounded-full bg-sp-success/15 text-sp-success">
+                                    <ArrowUpRight size={15} />
+                                </span>
                                 Lent
-                            </p>
+                            </div>
 
-                            <p className="mt-1 text-xl font-semibold text-green-400">
+                            <p className="tabular mt-3 text-xl font-semibold text-sp-success">
                                 ₹{lend.toFixed(2)}
                             </p>
 
-                            <p className="mt-1 text-xs text-sp-muted">
+                            <p className="mt-0.5 text-xs text-sp-muted">
                                 Others owe you
                             </p>
-                        </div>
+                        </Card>
 
                         {/* Borrowed */}
-                        <div className="rounded-xl bg-sp-bg p-4">
-                            <p className="text-sm text-sp-muted">
+                        <Card className="p-4">
+                            <div className="flex items-center gap-2 text-sm text-sp-muted">
+                                <span className="grid size-7 place-items-center rounded-full bg-sp-danger/15 text-sp-danger">
+                                    <ArrowDownLeft size={15} />
+                                </span>
                                 Borrowed
-                            </p>
+                            </div>
 
-                            <p className="mt-1 text-xl font-semibold text-red-400">
+                            <p className="tabular mt-3 text-xl font-semibold text-sp-danger">
                                 ₹{borrow.toFixed(2)}
                             </p>
 
-                            <p className="mt-1 text-xs text-sp-muted">
+                            <p className="mt-0.5 text-xs text-sp-muted">
                                 You owe others
                             </p>
-                        </div>
+                        </Card>
 
                     </div>
-                </div>
+                </section>
 
                 {/* Logout */}
-                <button
-                    onClick={handleLogout}
-                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-sp-surface px-4 py-4 text-sm font-medium text-red-400 transition hover:bg-white/10"
-                >
-                    <LogOut size={18} />
-                    Logout
-                </button>
+                <section className="animate-rise-in [animation-delay:120ms]">
+                    <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-sp-muted">
+                        Account
+                    </h2>
 
+                    <Card className="overflow-hidden">
+                        <button
+                            onClick={handleLogout}
+                            className="flex h-14 w-full items-center gap-3 px-4 text-[15px] font-medium text-sp-danger transition-colors hover:bg-sp-danger/5 active:bg-sp-danger/10"
+                        >
+                            <span className="grid size-8 place-items-center rounded-full bg-sp-danger/10">
+                                <LogOut size={17} />
+                            </span>
+                            Logout
+                        </button>
+                    </Card>
+                </section>
             </div>
         </main>
     );

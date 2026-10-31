@@ -424,7 +424,7 @@ export default function AmountKeypad({
             : null;
 
     return (
-        <div className="w-full overflow-hidden rounded-t-[28px] bg-[#202124] text-white">
+        <div className="w-full overflow-hidden rounded-t-sp-sheet bg-sp-card pb-safe text-white">
             {/* Live result */}
             {/* <div className="min-h-10 px-5 pt-2 text-right">
                 {value && displayResult !== null && (
@@ -435,7 +435,7 @@ export default function AmountKeypad({
             </div> */}
 
             {/* Keypad */}
-            <div className="grid grid-cols-5">
+            <div className="grid grid-cols-5 gap-1.5 p-2">
                 {/* Row 1 */}
                 <Key
                     label="+"
@@ -570,6 +570,8 @@ export default function AmountKeypad({
     );
 }
 
+const OPERATOR_KEYS = new Set(["+", "-", "×", "÷", "⌫", "C"]);
+
 type KeyProps = {
     label: string;
     onClick: () => void;
@@ -590,15 +592,17 @@ function Key({
             disabled={disabled}
             aria-label={label}
             className={[
-                "h-[62px] items-center justify-center",
-                "text-[27px] font-light",
-                "transition active:scale-95",
-                "select-none",
+                "flex h-14 items-center justify-center rounded-sp-md",
+                "font-light select-none",
+                "transition-[transform,background-color] duration-(--dur-fast) active:scale-[0.93]",
+                confirm ? "text-lg font-semibold" : "text-[26px]",
                 disabled
                     ? "cursor-not-allowed text-white/20"
                     : confirm
-                        ? "text-white hover:bg-white/[0.04]"
-                        : "text-white/90 hover:bg-white/[0.04]",
+                        ? "bg-sp-primary text-white shadow-sp-card active:brightness-110"
+                        : OPERATOR_KEYS.has(label)
+                            ? "bg-sp-primary/10 text-sp-primary-soft active:bg-sp-primary/25"
+                            : "bg-white/[0.04] text-white/90 active:bg-white/[0.12]",
             ].join(" ")}
         >
             {label}

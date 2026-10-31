@@ -384,6 +384,87 @@ class ContactBalanceTests(APITestCase):
         self.assertLessEqual(max(large.values()), 3)
 
 
+    def get_statement(self, **params):
+        response = self.client.get(
+            f"/contacts/{self.contact.id}/statement/", params
+        )
+        self.assertEqual(response.status_code, 200)
+        return response.data
+
+    def statement_keys(self, data):
+        return set(self.rows_by_key(data))
+
+    def test_statement_unsettled_includes_partial_rows(self):
+        self.seed_mixed()
+
+        data = self.get_statement(status="unsettled")
+
+        self.assertEqual(self.statement_keys(data), {
+            ("expense", self.user_partial.id),
+            ("expense", self.contact_unsettled.id),
+            ("individual", self.lend_partial.id),
+            ("individual", self.borrow_unsettled.id),
+        })
+        self.assertEqual(data["balance"], Decimal("15.00"))
+
+    def test_statement_settled_only_fully_settled_rows(self):
+        self.seed_mixed()
+
+        data = self.get_statement(status="settled")
+
+        self.assertEqual(self.statement_keys(data), {
+            ("expense", self.contact_full.id),
+            ("individual", self.borrow_full.id),
+        })
+        self.assertEqual(data["balance"], 0)
+
+    def test_statement_all_defaults_to_every_row(self):
+        self.seed_mixed()
+
+        data = self.get_statement(status="all")
+
+        self.assertEqual(len(data["transactions"]), 6)
+        self.assertEqual(data["balance"], Decimal("15.00"))
+
+    def test_statement_date_range_is_from_inclusive_to_exclusive(self):
+        self.seed_mixed()
+        start = self.contact_unsettled.transaction.transaction_datetime
+        end = self.borrow_unsettled.transaction_datetime
+
+        data = self.get_statement(
+            status="all",
+            **{"from": start.isoformat(), "to": end.isoformat()},
+        )
+
+        self.assertEqual(self.statement_keys(data), {
+            ("expense", self.contact_unsettled.id),
+            ("individual", self.lend_partial.id),
+        })
+        # -25 (alice paid) + 30 (lend remaining)
+        self.assertEqual(data["balance"], Decimal("5.00"))
+
+    def test_statement_rejects_bad_params(self):
+        url = f"/contacts/{self.contact.id}/statement/"
+
+        self.assertEqual(
+            self.client.get(url, {"status": "pending"}).status_code, 400
+        )
+        self.assertEqual(
+            self.client.get(url, {"from": "2026-10-01T00:00"}).status_code, 400
+        )
+        self.assertEqual(
+            self.client.get(url, {"from": "yesterday"}).status_code, 400
+        )
+
+    def test_statement_hides_other_users_contacts(self):
+        stranger = User.objects.create_user("stranger", password="x")
+        foreign = Contact.objects.create(owner=stranger, name="foreign")
+
+        response = self.client.get(f"/contacts/{foreign.id}/statement/")
+
+        self.assertEqual(response.status_code, 404)
+
+
 class TransactionCreateValidationTests(APITestCase):
 
     def setUp(self):

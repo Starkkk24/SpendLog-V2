@@ -2,6 +2,8 @@
 
 
 
+
+import { toast } from "@/components/ui/Toast";
 import { useEffect, useRef, useState } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
@@ -50,6 +52,7 @@ import {
 import { createTransaction } from "@/services/transactions";
 
 import axios from "axios";
+import { toApiDateTime } from "@/lib/datetime";
 
 
 
@@ -1340,11 +1343,7 @@ export default function CreateTransactionModal({
 
         if (!date || !time) {
 
-            alert(
-
-                "Please select date and time."
-
-            );
+            toast.error("Please select date and time.");
 
             return;
 
@@ -1354,11 +1353,7 @@ export default function CreateTransactionModal({
 
         if (!transactionTotal) {
 
-            alert(
-
-                "Please enter a total amount."
-
-            );
+            toast.error("Please enter a total amount.");
 
             return;
 
@@ -1368,11 +1363,7 @@ export default function CreateTransactionModal({
 
         if (!participants.length) {
 
-            alert(
-
-                "Please select at least one splittie."
-
-            );
+            toast.error("Please select at least one splittie.");
 
             return;
 
@@ -1382,11 +1373,7 @@ export default function CreateTransactionModal({
 
         if (hasInvalidParticipantAmount) {
 
-            alert(
-
-                "One or more split amounts contain an invalid expression."
-
-            );
+            toast.error("One or more split amounts contain an invalid expression.");
 
             return;
 
@@ -1396,11 +1383,7 @@ export default function CreateTransactionModal({
 
         if (!amountsMatch) {
 
-            alert(
-
-                "Split amounts must equal the total amount."
-
-            );
+            toast.error("Split amounts must equal the total amount.");
 
             return;
 
@@ -1440,7 +1423,7 @@ export default function CreateTransactionModal({
 
             transaction_datetime:
 
-                `${date}T${time}`,
+                toApiDateTime(`${date}T${time}`),
 
 
 
@@ -1546,7 +1529,7 @@ export default function CreateTransactionModal({
 
             <div
 
-                className="fixed inset-0 z-100 bg-black/60"
+                className="fixed inset-0 z-100 bg-black/60 animate-fade-in"
 
                 onClick={onClose}
 
@@ -1554,7 +1537,7 @@ export default function CreateTransactionModal({
 
                 <div
 
-                    className="absolute inset-x-0 bottom-0 flex h-[100dvh] flex-col overflow-hidden rounded-t-[28px] bg-sp-bg shadow-2xl"
+                    className="absolute inset-x-0 bottom-0 flex h-[100dvh] flex-col overflow-hidden rounded-t-sp-sheet bg-sp-bg shadow-2xl animate-sheet-in"
 
                     onClick={(e) =>
 
@@ -1927,7 +1910,7 @@ export default function CreateTransactionModal({
 
 
                     {/* KEYPAD */}
-                    <div className="relative shrink-0 border-t border-white/5 bg-[#202124] pb-[env(safe-area-inset-bottom)]">
+                    <div className="relative shrink-0 border-t border-white/5 bg-sp-card pb-[env(safe-area-inset-bottom)]">
 
                         <AmountKeypad
                             value={amount}
@@ -1957,7 +1940,7 @@ export default function CreateTransactionModal({
 
                 <div
 
-                    className="fixed inset-0 z-[110] bg-black/60"
+                    className="fixed inset-0 z-[110] bg-black/60 animate-fade-in"
 
                     onClick={() =>
 
@@ -1969,7 +1952,7 @@ export default function CreateTransactionModal({
 
                     <div
 
-                        className="absolute inset-x-0 bottom-0 rounded-t-[28px] bg-sp-bg p-5"
+                        className="absolute inset-x-0 bottom-0 rounded-t-sp-sheet bg-sp-bg p-5 animate-sheet-in"
 
                         onClick={(e) =>
 
@@ -2070,11 +2053,11 @@ export default function CreateTransactionModal({
             {/* SPLIT AMOUNT SHEET */}
             {showSplitSheet && (
                 <div
-                    className="fixed inset-0 z-[110] bg-black/70"
+                    className="fixed inset-0 z-[110] bg-black/70 animate-fade-in"
                     onClick={() => setShowSplitSheet(false)}
                 >
                     <div
-                        className="absolute inset-x-0 bottom-0 max-h-[90dvh] overflow-y-auto rounded-t-[28px] bg-sp-bg p-5 pb-[max(20px,env(safe-area-inset-bottom))]"
+                        className="absolute inset-x-0 bottom-0 max-h-[90dvh] overflow-y-auto rounded-t-sp-sheet bg-sp-bg p-5 pb-[max(20px,env(safe-area-inset-bottom))] animate-sheet-in"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex items-center justify-between">
@@ -2249,7 +2232,7 @@ export default function CreateTransactionModal({
                                                         ? "cursor-default"
                                                         : ""
                                                         } ${isInvalidAmount
-                                                            ? "ring-1 ring-red-400"
+                                                            ? "ring-1 ring-sp-danger"
                                                             : ""
                                                         }`}
                                                 />
@@ -2258,7 +2241,7 @@ export default function CreateTransactionModal({
 
                                         {isInvalidAmount &&
                                             splitMode !== "percentage" && (
-                                                <p className="mt-2 text-xs text-red-400">
+                                                <p className="mt-2 text-xs text-sp-danger">
                                                     Invalid amount expression.
                                                 </p>
                                             )}
@@ -2277,7 +2260,7 @@ export default function CreateTransactionModal({
                                         className={
                                             percentagesMatch
                                                 ? "text-sp-success"
-                                                : "text-red-400"
+                                                : "text-sp-danger"
                                         }
                                     >
                                         {formatMoney(totalPercentage)}%
@@ -2321,7 +2304,7 @@ export default function CreateTransactionModal({
                                     className={
                                         amountsMatch
                                             ? "text-sp-success"
-                                            : "text-red-400"
+                                            : "text-sp-danger"
                                     }
                                 >
                                     ₹
@@ -2332,7 +2315,7 @@ export default function CreateTransactionModal({
                             </div>
 
                             {hasInvalidParticipantAmount && (
-                                <p className="mt-3 text-xs text-red-400">
+                                <p className="mt-3 text-xs text-sp-danger">
                                     Fix the invalid split amount before
                                     creating the transaction.
                                 </p>

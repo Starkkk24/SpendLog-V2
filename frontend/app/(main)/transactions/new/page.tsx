@@ -1,5 +1,7 @@
 "use client";
 
+
+import { toast } from "@/components/ui/Toast";
 import { useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 // import { getContacts } from "@/services/contacts";
@@ -7,6 +9,7 @@ import { getCurrentUser } from "@/services/auth";
 import { createContact, getContacts } from "@/services/contacts";
 import { createTransaction } from "@/services/transactions";
 import axios from "axios";
+import { toApiDateTime } from "@/lib/datetime";
 
 type Contact = {
     id: number;
@@ -30,10 +33,10 @@ type Participant = {
 /* ------------------------------------------------------------------ */
 
 const inputClass =
-    "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[15px] text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10";
+    "w-full rounded-xl border border-sp-border bg-sp-card px-3.5 py-2.5 text-[15px] text-sp-text shadow-sp-card outline-none transition placeholder:text-sp-muted/70 focus:border-sp-primary focus:ring-4 focus:ring-sp-primary/10";
 
 const labelClass =
-    "mb-1.5 block text-sm font-medium text-slate-700";
+    "mb-1.5 block text-sm font-medium text-sp-text";
 
 function formatMoney(value: number) {
     return value.toLocaleString("en-IN", {
@@ -58,19 +61,19 @@ function Section({
     children: ReactNode;
 }) {
     return (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <section className="rounded-2xl border border-sp-border bg-sp-card p-5 shadow-sp-card sm:p-6">
             <div className="mb-5 flex items-start gap-3">
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-500">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-sp-surface text-xs font-semibold text-sp-muted">
                     {step}
                 </span>
 
                 <div>
-                    <h2 className="text-base font-semibold tracking-tight text-slate-900">
+                    <h2 className="text-base font-semibold tracking-tight text-sp-text">
                         {title}
                     </h2>
 
                     {description && (
-                        <p className="mt-0.5 text-sm text-slate-500">
+                        <p className="mt-0.5 text-sm text-sp-muted">
                             {description}
                         </p>
                     )}
@@ -153,17 +156,17 @@ export default function TransactionsPage() {
         if (!user) return;
 
         if (!transactionDatetime) {
-            alert("Please select the transaction date and time.");
+            toast.error("Please select the transaction date and time.");
             return;
         }
 
         if (!amountsMatch) {
-            alert("Assigned amounts must equal the total amount.");
+            toast.error("Assigned amounts must equal the total amount.");
             return;
         }
 
         if (participants.length === 0) {
-            alert("Add at least one participant.");
+            toast.error("Add at least one participant.");
             return;
         }
 
@@ -180,7 +183,7 @@ export default function TransactionsPage() {
 
             note,
 
-            transaction_datetime: transactionDatetime,
+            transaction_datetime: toApiDateTime(transactionDatetime),
 
             splits: participants.map((participant) => ({
                 user: participant.type === "user"
@@ -207,7 +210,7 @@ export default function TransactionsPage() {
                 queryClient.invalidateQueries({ queryKey: ["contactBalance"] }),
             ]);
 
-            alert("Transaction created successfully!");
+            toast.success("Transaction created successfully!");
 
         } catch (error) {
             if (axios.isAxiosError(error)) {
@@ -228,16 +231,16 @@ export default function TransactionsPage() {
     );
 
     return (
-        <div className="min-h-screen bg-slate-50">
-            <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
+        <div className="min-h-dvh">
+            <div className="page animate-rise-in pt-[calc(var(--safe-top)+1.5rem)] pb-4">
 
                 {/* ---------------- Header ---------------- */}
                 <header className="mb-7">
-                    <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-[28px]">
+                    <h1 className="text-2xl font-semibold tracking-tight text-sp-text sm:text-[28px]">
                         New transaction
                     </h1>
 
-                    <p className="mt-1.5 text-sm text-slate-500">
+                    <p className="mt-1.5 text-sm text-sp-muted">
                         Record what was spent, who paid, and how it splits between everyone involved.
                     </p>
                 </header>
@@ -255,8 +258,8 @@ export default function TransactionsPage() {
                             {/* Me */}
                             <label
                                 className={`group flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${payerType === "user"
-                                    ? "border-blue-500 bg-blue-50/60 ring-1 ring-blue-500"
-                                    : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                                    ? "border-sp-primary bg-sp-primary/10 ring-1 ring-sp-primary"
+                                    : "border-sp-border bg-sp-card hover:border-white/15 hover:bg-sp-bg"
                                     }`}
                             >
                                 <input
@@ -272,27 +275,27 @@ export default function TransactionsPage() {
 
                                 <span
                                     className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold transition ${payerType === "user"
-                                        ? "bg-blue-600 text-white"
-                                        : "bg-slate-100 text-slate-600"
+                                        ? "bg-sp-primary text-white"
+                                        : "bg-sp-surface text-sp-muted"
                                         }`}
                                 >
                                     {user ? initials(user.username) : "?"}
                                 </span>
 
                                 <span className="min-w-0 flex-1">
-                                    <span className="block truncate text-sm font-medium text-slate-900">
+                                    <span className="block truncate text-sm font-medium text-sp-text">
                                         {user?.username ? `Me (${user.username})` : "Me"}
                                     </span>
 
-                                    <span className="block text-xs text-slate-500">
+                                    <span className="block text-xs text-sp-muted">
                                         You
                                     </span>
                                 </span>
 
                                 <span
-                                    className={`h-4 w-4 shrink-0 rounded-full border-2 transition peer-focus-visible:ring-4 peer-focus-visible:ring-blue-500/20 ${payerType === "user"
-                                        ? "border-[5px] border-blue-600"
-                                        : "border-slate-300"
+                                    className={`h-4 w-4 shrink-0 rounded-full border-2 transition peer-focus-visible:ring-4 peer-focus-visible:ring-sp-primary/20 ${payerType === "user"
+                                        ? "border-[5px] border-sp-primary"
+                                        : "border-white/15"
                                         }`}
                                 />
                             </label>
@@ -307,8 +310,8 @@ export default function TransactionsPage() {
                                     <label
                                         key={contact.id}
                                         className={`group flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${selected
-                                            ? "border-blue-500 bg-blue-50/60 ring-1 ring-blue-500"
-                                            : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                                            ? "border-sp-primary bg-sp-primary/10 ring-1 ring-sp-primary"
+                                            : "border-sp-border bg-sp-card hover:border-white/15 hover:bg-sp-bg"
                                             }`}
                                     >
                                         <input
@@ -327,27 +330,27 @@ export default function TransactionsPage() {
 
                                         <span
                                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold transition ${selected
-                                                ? "bg-blue-600 text-white"
-                                                : "bg-slate-100 text-slate-600"
+                                                ? "bg-sp-primary text-white"
+                                                : "bg-sp-surface text-sp-muted"
                                                 }`}
                                         >
                                             {initials(contact.name)}
                                         </span>
 
                                         <span className="min-w-0 flex-1">
-                                            <span className="block truncate text-sm font-medium text-slate-900">
+                                            <span className="block truncate text-sm font-medium text-sp-text">
                                                 {contact.name}
                                             </span>
 
-                                            <span className="block text-xs text-slate-500">
+                                            <span className="block text-xs text-sp-muted">
                                                 Contact
                                             </span>
                                         </span>
 
                                         <span
-                                            className={`h-4 w-4 shrink-0 rounded-full border-2 transition peer-focus-visible:ring-4 peer-focus-visible:ring-blue-500/20 ${selected
-                                                ? "border-[5px] border-blue-600"
-                                                : "border-slate-300"
+                                            className={`h-4 w-4 shrink-0 rounded-full border-2 transition peer-focus-visible:ring-4 peer-focus-visible:ring-sp-primary/20 ${selected
+                                                ? "border-[5px] border-sp-primary"
+                                                : "border-white/15"
                                                 }`}
                                         />
                                     </label>
@@ -356,7 +359,7 @@ export default function TransactionsPage() {
                         </div>
 
                         {contacts.length === 0 && (
-                            <p className="mt-3 rounded-xl bg-slate-50 px-3.5 py-3 text-sm text-slate-500">
+                            <p className="mt-3 rounded-xl bg-sp-bg px-3.5 py-3 text-sm text-sp-muted">
                                 You have no contacts yet. Add one further down and it will show up here next time.
                             </p>
                         )}
@@ -376,7 +379,7 @@ export default function TransactionsPage() {
                                 </label>
 
                                 <div className="relative">
-                                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] font-medium text-slate-400">
+                                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] font-medium text-sp-muted/70">
                                         ₹
                                     </span>
 
@@ -421,7 +424,7 @@ export default function TransactionsPage() {
                                 />
 
                                 {!transactionDatetime && (
-                                    <p className="mt-1.5 text-xs text-slate-500">
+                                    <p className="mt-1.5 text-xs text-sp-muted">
                                         Required before you can create the transaction.
                                     </p>
                                 )}
@@ -437,12 +440,12 @@ export default function TransactionsPage() {
                         description="Give each person their share. The shares must add up to the total."
                     >
                         {participants.length === 0 ? (
-                            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
-                                <p className="text-sm font-medium text-slate-700">
+                            <div className="rounded-xl border border-dashed border-white/15 bg-sp-bg px-4 py-8 text-center">
+                                <p className="text-sm font-medium text-sp-text">
                                     Nobody in this split yet
                                 </p>
 
-                                <p className="mt-1 text-sm text-slate-500">
+                                <p className="mt-1 text-sm text-sp-muted">
                                     Add someone from the list below to get started.
                                 </p>
                             </div>
@@ -451,24 +454,24 @@ export default function TransactionsPage() {
                                 {participants.map((participant) => (
                                     <div
                                         key={`${participant.type}-${participant.id}`}
-                                        className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-slate-300"
+                                        className="flex flex-wrap items-center gap-3 rounded-xl border border-sp-border bg-sp-card p-3 transition hover:border-white/15"
                                     >
-                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
+                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sp-surface text-sm font-semibold text-sp-muted">
                                             {initials(participant.name)}
                                         </span>
 
                                         <span className="min-w-0 flex-1">
-                                            <span className="block truncate text-sm font-medium text-slate-900">
+                                            <span className="block truncate text-sm font-medium text-sp-text">
                                                 {participant.name}
                                             </span>
 
-                                            <span className="block text-xs text-slate-500">
+                                            <span className="block text-xs text-sp-muted">
                                                 {participant.type === "user" ? "You" : "Contact"}
                                             </span>
                                         </span>
 
                                         <div className="relative w-28 shrink-0">
-                                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-sp-muted/70">
                                                 ₹
                                             </span>
 
@@ -491,7 +494,7 @@ export default function TransactionsPage() {
                                                         )
                                                     );
                                                 }}
-                                                className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-7 pr-2.5 text-sm font-medium tabular-nums text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                                                className="w-full rounded-lg border border-sp-border bg-sp-card py-2 pl-7 pr-2.5 text-sm font-medium tabular-nums text-sp-text outline-none transition placeholder:font-normal placeholder:text-sp-muted/70 focus:border-sp-primary focus:ring-4 focus:ring-sp-primary/10"
                                             />
                                         </div>
 
@@ -510,7 +513,7 @@ export default function TransactionsPage() {
                                                     )
                                                 );
                                             }}
-                                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-500/15"
+                                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sp-muted/70 transition hover:bg-sp-danger/10 hover:text-sp-danger focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sp-danger/15"
                                         >
                                             <svg
                                                 viewBox="0 0 20 20"
@@ -530,8 +533,8 @@ export default function TransactionsPage() {
                         )}
 
                         {/* ---------------- Add participant ---------------- */}
-                        <div className="mt-5 border-t border-slate-100 pt-5">
-                            <h3 className="text-sm font-medium text-slate-700">
+                        <div className="mt-5 border-t border-sp-border pt-5">
+                            <h3 className="text-sm font-medium text-sp-text">
                                 Add someone to the split
                             </h3>
 
@@ -551,9 +554,9 @@ export default function TransactionsPage() {
                                                 },
                                             ]);
                                         }}
-                                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white py-2 pl-2.5 pr-3.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15"
+                                        className="inline-flex items-center gap-1.5 rounded-full border border-sp-border bg-sp-card py-2 pl-2.5 pr-3.5 text-sm font-medium text-sp-text transition hover:border-white/15 hover:bg-sp-bg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sp-primary/15"
                                     >
-                                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600">
+                                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-sp-surface text-[11px] font-semibold text-sp-muted">
                                             {initials(contact.name)}
                                         </span>
 
@@ -564,9 +567,9 @@ export default function TransactionsPage() {
                                 <button
                                     type="button"
                                     onClick={() => setShowNewContact(true)}
-                                    className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-slate-300 bg-white py-2 pl-2.5 pr-3.5 text-sm font-medium text-blue-600 transition hover:border-blue-400 hover:bg-blue-50/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15"
+                                    className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-white/15 bg-sp-card py-2 pl-2.5 pr-3.5 text-sm font-medium text-sp-primary-soft transition hover:border-sp-primary hover:bg-sp-primary/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sp-primary/15"
                                 >
-                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-sp-primary/10 text-sp-primary-soft">
                                         <svg
                                             viewBox="0 0 20 20"
                                             fill="none"
@@ -585,14 +588,14 @@ export default function TransactionsPage() {
                             </div>
 
                             {availableContacts.length === 0 && contacts.length > 0 && (
-                                <p className="mt-2.5 text-xs text-slate-500">
+                                <p className="mt-2.5 text-xs text-sp-muted">
                                     Everyone in your contacts is already in this split.
                                 </p>
                             )}
 
                             {showNewContact && (
-                                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
-                                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                                <div className="mt-3 rounded-xl border border-sp-border bg-sp-bg p-3.5">
+                                    <label className="mb-1.5 block text-sm font-medium text-sp-text">
                                         Add someone who isn&apos;t in your contacts yet
                                     </label>
 
@@ -641,13 +644,13 @@ export default function TransactionsPage() {
                                                     console.error("Failed to create contact:", error);
                                                 }
                                             }}
-                                            className="shrink-0 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/25"
+                                            className="shrink-0 rounded-xl bg-sp-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sp-primary-deep focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sp-primary/25"
                                         >
                                             Add contact
                                         </button>
                                     </div>
 
-                                    <p className="mt-2 text-xs text-slate-500">
+                                    <p className="mt-2 text-xs text-sp-muted">
                                         They&apos;ll be saved to your contacts and added to this split.
                                     </p>
                                 </div>
@@ -656,45 +659,45 @@ export default function TransactionsPage() {
                     </Section>
 
                     {/* ---------------- 4. Summary + CTA ---------------- */}
-                    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                        <h2 className="text-base font-semibold tracking-tight text-slate-900">
+                    <section className="rounded-2xl border border-sp-border bg-sp-card p-5 shadow-sp-card sm:p-6">
+                        <h2 className="text-base font-semibold tracking-tight text-sp-text">
                             Split summary
                         </h2>
 
                         <dl className="mt-4 grid grid-cols-3 gap-3">
-                            <div className="rounded-xl bg-slate-50 px-3 py-3">
-                                <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                            <div className="rounded-xl bg-sp-bg px-3 py-3">
+                                <dt className="text-xs font-medium uppercase tracking-wide text-sp-muted">
                                     Total
                                 </dt>
 
-                                <dd className="mt-1 text-base font-semibold tabular-nums text-slate-900 sm:text-lg">
+                                <dd className="mt-1 text-base font-semibold tabular-nums text-sp-text sm:text-lg">
                                     ₹{formatMoney(transactionTotal)}
                                 </dd>
                             </div>
 
-                            <div className="rounded-xl bg-slate-50 px-3 py-3">
-                                <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                            <div className="rounded-xl bg-sp-bg px-3 py-3">
+                                <dt className="text-xs font-medium uppercase tracking-wide text-sp-muted">
                                     Assigned
                                 </dt>
 
-                                <dd className="mt-1 text-base font-semibold tabular-nums text-slate-900 sm:text-lg">
+                                <dd className="mt-1 text-base font-semibold tabular-nums text-sp-text sm:text-lg">
                                     ₹{formatMoney(assignedTotal)}
                                 </dd>
                             </div>
 
                             <div
-                                className={`rounded-xl px-3 py-3 ${amountsMatch ? "bg-emerald-50" : "bg-amber-50"
+                                className={`rounded-xl px-3 py-3 ${amountsMatch ? "bg-sp-success/10" : "bg-sp-warning/10"
                                     }`}
                             >
                                 <dt
-                                    className={`text-xs font-medium uppercase tracking-wide ${amountsMatch ? "text-emerald-700" : "text-amber-700"
+                                    className={`text-xs font-medium uppercase tracking-wide ${amountsMatch ? "text-sp-success" : "text-sp-warning"
                                         }`}
                                 >
                                     {remaining < 0 ? "Over by" : "Remaining"}
                                 </dt>
 
                                 <dd
-                                    className={`mt-1 text-base font-semibold tabular-nums sm:text-lg ${amountsMatch ? "text-emerald-700" : "text-amber-700"
+                                    className={`mt-1 text-base font-semibold tabular-nums sm:text-lg ${amountsMatch ? "text-sp-success" : "text-sp-warning"
                                         }`}
                                 >
                                     ₹{formatMoney(Math.abs(remaining))}
@@ -705,8 +708,8 @@ export default function TransactionsPage() {
                         {transactionTotal > 0 && (
                             <div
                                 className={`mt-4 flex items-start gap-2.5 rounded-xl px-3.5 py-3 text-sm ${amountsMatch
-                                    ? "bg-emerald-50 text-emerald-800"
-                                    : "bg-amber-50 text-amber-800"
+                                    ? "bg-sp-success/10 text-sp-success"
+                                    : "bg-sp-warning/10 text-sp-warning"
                                     }`}
                             >
                                 <svg
@@ -740,7 +743,7 @@ export default function TransactionsPage() {
                         )}
 
                         {transactionTotal <= 0 && (
-                            <p className="mt-4 rounded-xl bg-slate-50 px-3.5 py-3 text-sm text-slate-500">
+                            <p className="mt-4 rounded-xl bg-sp-bg px-3.5 py-3 text-sm text-sp-muted">
                                 Enter a total amount above to start splitting it.
                             </p>
                         )}
@@ -749,13 +752,13 @@ export default function TransactionsPage() {
                             type="button"
                             onClick={handleCreateTransaction}
                             disabled={!amountsMatch}
-                            className="mt-5 w-full rounded-xl bg-blue-600 px-6 py-3.5 text-[15px] font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/25 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+                            className="mt-5 w-full rounded-xl bg-sp-primary px-6 py-3.5 text-[15px] font-semibold text-white shadow-sp-card transition hover:bg-sp-primary-deep focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sp-primary/25 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-sp-muted/70 disabled:shadow-none"
                         >
                             Create transaction
                         </button>
 
                         {!amountsMatch && (
-                            <p className="mt-2.5 text-center text-xs text-slate-500">
+                            <p className="mt-2.5 text-center text-xs text-sp-muted">
                                 Available once the assigned amounts match the total.
                             </p>
                         )}

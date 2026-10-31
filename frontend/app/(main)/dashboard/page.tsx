@@ -10,6 +10,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { logout, getProtectedData } from "@/services/auth";
+import Button from "@/components/ui/Button";
+import Spinner from "@/components/ui/Spinner";
+import PageHeader from "@/components/navigation/PageHeader";
 
 export default function DashboardPage() {
 
@@ -27,13 +30,13 @@ export default function DashboardPage() {
     });
 
     if (isPending) {
-        return <div>Loading dashboard...</div>;
+        return <main className="page grid min-h-[60dvh] place-items-center"><Spinner className="size-6 text-sp-muted" /></main>;
     }
 
     if (isError) {
         console.error(error);
         router.push("/login");
-        return <div>Redirecting to login...</div>;
+        return <main className="page py-10 text-center text-sp-muted">Redirecting to login...</main>;
     }
 
 
@@ -46,25 +49,19 @@ export default function DashboardPage() {
     }
 
     return (
-        <>
-            <div className="flex flex-col items-center justify-center w-full gap-4">
-                <h1>Dashboard</h1>
-                <button onClick={handleLogout} className="inline-flex rounded-xl bg-red-600  hover:bg-red-500" >
-                    <span className="flex items-center justify-center rounded-[10px] bg-neutral-primary-soft px-5 py-2.5 text-sm font-medium text-heading transition-all duration-300 group-hover:bg-transparent group-hover:text-white">
-                        Logout
-                    </span>
-                </button>
-                <button onClick={() => router.push("/contacts")} className="inline-flex rounded-xl bg-blue-600  hover:bg-blue-500" >
-                    <span className="flex items-center justify-center rounded-[10px] bg-neutral-primary-soft px-5 py-2.5 text-sm font-medium text-heading transition-all duration-300 group-hover:bg-transparent group-hover:text-white">
-                        Contact
-                    </span>
-                </button>
-                <button onClick={() => router.push("/transactions")} className="inline-flex rounded-xl bg-green-600  hover:bg-green-500" >
-                    <span className="flex items-center justify-center rounded-[10px] bg-neutral-primary-soft px-5 py-2.5 text-sm font-medium text-heading transition-all duration-300 group-hover:bg-transparent group-hover:text-white">
-                        Transactions
-                    </span>
-                </button>
+        <main className="page">
+            <PageHeader title="Dashboard" />
+            <div className="grid gap-3">
+                <Button size="lg" variant="danger" onClick={handleLogout}>
+                    Logout
+                </Button>
+                <Button size="lg" onClick={() => router.push("/contacts")}>
+                    Contact
+                </Button>
+                <Button size="lg" variant="secondary" onClick={() => router.push("/transactions")}>
+                    Transactions
+                </Button>
             </div>
-        </>
+        </main>
     );
 }

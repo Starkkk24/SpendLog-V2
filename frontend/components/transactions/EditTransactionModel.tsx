@@ -22,6 +22,7 @@ import {
     getTransaction,
     updateTransaction,
 } from "@/services/transactions";
+import { toApiDateTime } from "@/lib/datetime";
 
 type Contact = {
     id: number;
@@ -527,7 +528,7 @@ export default function EditTransactionModal({
     if (loading) {
         return (
             <div className="fixed inset-0 z-[100] flex items-end bg-black/60 sm:items-center sm:justify-center">
-                <div className="w-full rounded-t-[28px] bg-sp-bg p-8 text-center text-sm text-sp-muted sm:max-w-xl sm:rounded-[28px]">
+                <div className="w-full rounded-t-sp-sheet bg-sp-bg p-8 text-center text-sm text-sp-muted sm:max-w-xl sm:rounded-sp-sheet animate-sheet-in sm:animate-pop-in">
                     Loading transaction...
                 </div>
             </div>
@@ -541,7 +542,7 @@ export default function EditTransactionModal({
                 onClick={onClose}
             >
                 <div
-                    className="w-full rounded-t-[28px] bg-sp-bg p-6 sm:max-w-xl sm:rounded-[28px]"
+                    className="w-full rounded-t-sp-sheet bg-sp-bg p-6 sm:max-w-xl sm:rounded-sp-sheet animate-sheet-in sm:animate-pop-in"
                     onClick={(event) => event.stopPropagation()}
                 >
                     <div className="mb-4 flex items-center justify-between">
@@ -552,7 +553,7 @@ export default function EditTransactionModal({
                             <X />
                         </button>
                     </div>
-                    <p className="text-sm text-red-300">
+                    <p className="text-sm text-sp-danger">
                         {error ?? "Transaction not found."}
                     </p>
                 </div>
@@ -1157,7 +1158,7 @@ export default function EditTransactionModal({
                 payer_contact: currentForm.payer_contact,
                 total_amount: total.toFixed(2),
                 note: currentForm.note,
-                transaction_datetime: `${currentForm.date}T${currentForm.time}`,
+                transaction_datetime: toApiDateTime(`${currentForm.date}T${currentForm.time}`),
                 splits: payloadSplits.map((split) => ({
                     user: split.user,
                     contact: split.contact,
@@ -1189,11 +1190,11 @@ export default function EditTransactionModal({
         <>
             {/* Main edit bottom sheet */}
             <div
-                className="fixed inset-0 z-[100] bg-black/60"
+                className="fixed inset-0 z-[100] bg-black/60 animate-fade-in"
                 onClick={onClose}
             >
                 <div
-                    className="absolute inset-x-0 bottom-0 flex max-h-[100dvh] flex-col overflow-hidden rounded-t-[28px] bg-sp-bg shadow-2xl sm:inset-x-auto sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-full sm:max-w-xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[28px]"
+                    className="absolute inset-x-0 bottom-0 flex max-h-[100dvh] flex-col overflow-hidden rounded-t-sp-sheet bg-sp-bg shadow-2xl sm:inset-x-auto sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-full sm:max-w-xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-sp-sheet animate-sheet-in sm:animate-pop-in"
                     onClick={(event) => event.stopPropagation()}
                 >
                     <header className="flex items-center justify-between border-b border-white/5 px-4 py-3">
@@ -1219,7 +1220,7 @@ export default function EditTransactionModal({
                     </header>
 
                     {saveError && (
-                        <div className="mx-4 mt-3 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2.5 text-sm text-red-300">
+                        <div className="mx-4 mt-3 rounded-xl border border-sp-danger/20 bg-sp-danger/10 px-3 py-2.5 text-sm text-sp-danger">
                             {saveError}
                         </div>
                     )}
@@ -1287,7 +1288,7 @@ export default function EditTransactionModal({
                             <div className="mb-2 flex items-center justify-between">
                                 <p className="text-sm text-sp-muted">Paid by</p>
                                 {hasRealSettlement && (
-                                    <span className="flex items-center gap-1 text-xs text-amber-300/80">
+                                    <span className="flex items-center gap-1 text-xs text-sp-warning/80">
                                         <LockKeyhole size={12} />
                                         Locked after settlement
                                     </span>
@@ -1353,7 +1354,7 @@ export default function EditTransactionModal({
                                     setKeypadTarget({ type: "total" })
                                 }
                                 className={`flex w-full items-center justify-center gap-2 rounded-xl border py-3 transition-colors disabled:opacity-50 ${keypadTarget?.type === "total"
-                                    ? "border-sp-primary bg-[#292d2d] shadow-[0_0_0_1px_rgba(255,255,255,0.06)]"
+                                    ? "border-sp-primary bg-sp-card shadow-[0_0_0_1px_rgba(255,255,255,0.06)]"
                                     : "border-transparent"
                                     }`}
                             >
@@ -1367,7 +1368,7 @@ export default function EditTransactionModal({
 
 
                             {hasRealSettlement && (
-                                <p className="text-xs text-amber-300/70">
+                                <p className="text-xs text-sp-warning/70">
                                     Total is locked because a split has been settled.
                                 </p>
                             )}
@@ -1466,7 +1467,7 @@ export default function EditTransactionModal({
                                         </button>
                                     </div>
                                     {contactError && (
-                                        <p className="mt-2 text-xs text-red-300">
+                                        <p className="mt-2 text-xs text-sp-danger">
                                             {contactError}
                                         </p>
                                     )}
@@ -1545,8 +1546,8 @@ export default function EditTransactionModal({
                             </div>
                             <span
                                 className={`text-sm font-medium ${amountsMatch
-                                    ? "text-emerald-300"
-                                    : "text-amber-300"
+                                    ? "text-sp-success"
+                                    : "text-sp-warning"
                                     }`}
                             >
                                 {amountsMatch
@@ -1581,7 +1582,7 @@ export default function EditTransactionModal({
                     onClick={() => setShowSplitSheet(false)}
                 >
                     <div
-                        className="flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-sp-bg sm:max-w-xl sm:rounded-[28px]"
+                        className="flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-sp-sheet bg-sp-bg sm:max-w-xl sm:rounded-sp-sheet animate-sheet-in sm:animate-pop-in"
                         onClick={(event) => event.stopPropagation()}
                     >
                         <header className="flex items-center justify-between border-b border-white/5 px-4 py-3">
@@ -1709,7 +1710,7 @@ export default function EditTransactionModal({
                                                 {locked && (
                                                     <LockKeyhole
                                                         size={16}
-                                                        className="text-amber-300"
+                                                        className="text-sp-warning"
                                                     />
                                                 )}
                                             </div>
@@ -1737,7 +1738,7 @@ export default function EditTransactionModal({
                                                                 ? "cursor-default opacity-50"
                                                                 : ""
                                                                 } ${isInvalidPercentage
-                                                                    ? "ring-1 ring-red-400"
+                                                                    ? "ring-1 ring-sp-danger"
                                                                     : ""
                                                                 }`}
                                                         />
@@ -1786,7 +1787,7 @@ export default function EditTransactionModal({
                                                                 ? "opacity-50"
                                                                 : ""
                                                             } ${isInvalidAmount
-                                                                ? "ring-1 ring-red-400"
+                                                                ? "ring-1 ring-sp-danger"
                                                                 : ""
                                                             }`}
                                                     />
@@ -1795,13 +1796,13 @@ export default function EditTransactionModal({
 
                                             {isInvalidAmount &&
                                                 splitMode !== "percentage" && (
-                                                    <p className="mt-2 text-xs text-red-400">
+                                                    <p className="mt-2 text-xs text-sp-danger">
                                                         Invalid amount expression.
                                                     </p>
                                                 )}
 
                                             {locked && (
-                                                <p className="mt-2 text-xs text-amber-300/75">
+                                                <p className="mt-2 text-xs text-sp-warning/75">
                                                     Settled ₹{money(split.settled_amount)} ·
                                                     Remaining ₹{money(remaining)}
                                                 </p>
@@ -1822,7 +1823,7 @@ export default function EditTransactionModal({
                                                 percentagesMatch &&
                                                     !hasInvalidPercentage
                                                     ? "text-sp-success"
-                                                    : "text-red-400"
+                                                    : "text-sp-danger"
                                             }
                                         >
                                             {money(totalPercentage)}%
@@ -1851,8 +1852,8 @@ export default function EditTransactionModal({
                                     <span
                                         className={
                                             amountsMatch
-                                                ? "text-emerald-300"
-                                                : "text-red-300"
+                                                ? "text-sp-success"
+                                                : "text-sp-danger"
                                         }
                                     >
                                         {amountsMatch
@@ -1862,7 +1863,7 @@ export default function EditTransactionModal({
                                 </div>
 
                                 {invalidAmount && (
-                                    <p className="mt-3 text-xs text-red-400">
+                                    <p className="mt-3 text-xs text-sp-danger">
                                         Fix the invalid split amount before
                                         saving.
                                     </p>
@@ -1891,7 +1892,7 @@ export default function EditTransactionModal({
                     onClick={() => setKeypadTarget(null)}
                 >
                     <div
-                        className="relative z-[141] w-full overflow-hidden rounded-t-[28px] border-t border-white/10 bg-[#202124] shadow-[0_-12px_40px_rgba(0,0,0,0.35)] animate-in slide-in-from-bottom duration-200"
+                        className="relative z-[141] w-full overflow-hidden rounded-t-sp-sheet border-t border-white/10 bg-sp-card shadow-[0_-12px_40px_rgba(0,0,0,0.35)] animate-sheet-in"
                         onClick={(event) => event.stopPropagation()}
                     >
                         {/* Header */}

@@ -10,8 +10,8 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#17191b",
-    theme_color: "#17191b",
+    background_color: "#2C302E",
+    theme_color: "#2C302E",
     icons: [
       {
         src: "/icons/icon-192.png",
@@ -22,6 +22,13 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/icons/icon-512.png",
         sizes: "512x512",
         type: "image/png",
+      },
+      {
+        // Full-bleed version Android can crop to any shape.
+        src: "/icons/icon-maskable-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
       },
     ],
   };

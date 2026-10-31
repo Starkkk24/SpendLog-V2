@@ -1,6 +1,13 @@
 "use client";
 
 import FAB from "@/components/ui/FAB";
+import Button from "@/components/ui/Button";
+import EmptyState from "@/components/ui/EmptyState";
+import Sheet from "@/components/ui/Sheet";
+import { ListSkeleton } from "@/components/ui/Skeleton";
+import PageHeader from "@/components/navigation/PageHeader";
+import { cn } from "@/lib/cn";
+import { ArrowUpDown, Check, ChevronRight, ReceiptText, RotateCw, WifiOff } from "lucide-react";
 import CreateTransactionModal from "@/components/transactions/CreateTransactionModal";
 
 // import { useEffect, useState } from "react";
@@ -57,14 +64,19 @@ export default function TransactionsPage() {
         console.error("Failed to load transactions:", error);
 
         return (
-            <main className="min-h-screen bg-sp-bg p-6 text-white">
-                Failed to load transactions. Please try again.
-                <button
-                    onClick={() => loadTransactions()}
-                    className="ml-2 underline"
-                >
-                    Retry
-                </button>
+            <main className="page">
+                <PageHeader title="Transactions" />
+                <EmptyState
+                    icon={WifiOff}
+                    title="Failed to load transactions"
+                    description="Please check your connection and try again."
+                    action={
+                        <Button variant="secondary" onClick={() => loadTransactions()}>
+                            <RotateCw size={16} />
+                            Retry
+                        </Button>
+                    }
+                />
             </main>
         );
     }
@@ -110,131 +122,117 @@ export default function TransactionsPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-slate-50">
-                <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
-                    <p className="text-sm text-slate-500">
-                        Loading transactions...
-                    </p>
-                </div>
-            </div>
+            <main className="page">
+                <PageHeader title="Transactions" subtitle="Your spending history" />
+                <ListSkeleton rows={8} />
+            </main>
         );
     }
 
+    // Consecutive transactions that share a day label render as one card.
+    const groups: { day: string; items: { transaction: Transaction; time: string }[] }[] = [];
+
+    sortedTransactions.forEach((transaction, index) => {
+        const currentDate = new Date(
+            transaction.transaction_datetime
+        );
+
+        const previousDate =
+            index > 0
+                ? new Date(
+                    sortedTransactions[index - 1]
+                        .transaction_datetime
+                )
+                : null;
+
+        const currentDay = currentDate.toLocaleDateString(
+            "en-IN",
+            {
+                day: "2-digit",
+                month: "short",
+            }
+        );
+
+        const previousDay = previousDate
+            ? previousDate.toLocaleDateString(
+                "en-IN",
+                {
+                    day: "2-digit",
+                    month: "short",
+                }
+            )
+            : null;
+
+        const showDate =
+            index === 0 || currentDay !== previousDay;
+
+        const time = currentDate.toLocaleTimeString(
+            "en-IN",
+            {
+                hour: "numeric",
+                minute: "2-digit",
+            }
+        );
+
+        if (showDate) groups.push({ day: currentDay, items: [] });
+        groups[groups.length - 1].items.push({ transaction, time });
+    });
+
+    let rowIndex = 0;
+
     return (
-        <main className="min-h-screen bg-sp-bg px-4 pb-24 pt-6 text-white sm:px-6">
-            <div className="mx-auto max-w-5xl py-8 sm:py-12">
+        <main className="page">
+            <PageHeader
+                title="Transactions"
+                subtitle="Your spending history"
+                actions={
+                    transactions.length > 0 && (
+                        <Button variant="secondary" size="sm" onClick={() => setShowSort(true)}>
+                            <ArrowUpDown size={15} />
+                            Sort
+                        </Button>
+                    )
+                }
+            />
 
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="mb-6">
-                        <h1 className="text-2xl font-semibold text-white">
-                            Transactions
-                        </h1>
+            {transactions.length === 0 ? (
+                <EmptyState
+                    icon={ReceiptText}
+                    title="No transactions yet"
+                    description="Create your first transaction to start building your SpendLog."
+                />
+            ) : (
+                <div className="space-y-5">
+                    {groups.map((group) => (
+                        <section key={`${group.day}-${group.items[0].transaction.id}`}>
+                            <h2 className="sticky-under-header -mx-4 bg-sp-bg/95 px-5 py-2 text-xs font-semibold uppercase tracking-wider text-sp-muted backdrop-blur">
+                                {group.day}
+                            </h2>
 
-                        <p className="mt-1 text-sm text-sp-muted">
-                            Your spending history
-                        </p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => setShowSort(true)}
-                        className="rounded-xl bg-sp-surface px-3 py-2 text-xs font-medium text-sp-muted transition hover:text-white"
-                    >
-                        Sort
-                    </button>
-
-
-                </div>
-
-                {/* Empty state */}
-                {transactions.length === 0 ? (
-                    <div className="mt-8 rounded-2xl border border-white/10 bg-sp-surface px-6 py-12 text-center">
-                        <h2 className="text-base font-semibold text-white">
-                            No transactions yet
-                        </h2>
-
-                        <p className="mt-1 text-sm text-sp-muted">
-                            Create your first transaction to start building your SpendLog.
-                        </p>
-                    </div>
-                ) : (
-                    <div className="mt-8">
-                        {sortedTransactions.map((transaction, index) => {
-                            const currentDate = new Date(
-                                transaction.transaction_datetime
-                            );
-
-                            const previousDate =
-                                index > 0
-                                    ? new Date(
-                                        sortedTransactions[index - 1]
-                                            .transaction_datetime
-                                    )
-                                    : null;
-
-                            const currentDay = currentDate.toLocaleDateString(
-                                "en-IN",
-                                {
-                                    day: "2-digit",
-                                    month: "short",
-                                }
-                            );
-
-                            const previousDay = previousDate
-                                ? previousDate.toLocaleDateString(
-                                    "en-IN",
-                                    {
-                                        day: "2-digit",
-                                        month: "short",
-                                    }
-                                )
-                                : null;
-
-                            const showDate =
-                                index === 0 || currentDay !== previousDay;
-
-                            const time = currentDate.toLocaleTimeString(
-                                "en-IN",
-                                {
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                }
-                            );
-
-                            return (
-                                <div key={transaction.id}>
-                                    {/* Date heading */}
-                                    {showDate && (
-                                        <div className="mb-3 mt-6 first:mt-0">
-                                            <p className="text-xs font-semibold uppercase tracking-wider text-sp-muted">
-                                                {currentDay}
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {/* Transaction row */}
+                            <div className="divide-y divide-sp-border overflow-hidden rounded-sp-lg border border-sp-border bg-sp-card">
+                                {group.items.map(({ transaction, time }) => (
                                     <button
+                                        key={transaction.id}
                                         type="button"
                                         onClick={() =>
                                             router.push(
                                                 `/transactions/${transaction.id}`
                                             )
                                         }
-                                        className="flex w-full items-center gap-3 border-b border-white/5 py-4 text-left transition hover:bg-white/[0.03] active:bg-white/[0.06]"
+                                        style={{ animationDelay: `${Math.min(rowIndex++, 10) * 30}ms` }}
+                                        className="flex w-full animate-rise-in items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-white/[0.03] active:bg-white/[0.06]"
                                     >
-                                        {/* Transaction icon */}
-                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sp-primary-deep text-sm font-semibold text-white">
+                                        <div className="grid size-10 shrink-0 place-items-center rounded-full bg-sp-primary/20 text-sm font-semibold text-sp-primary-soft">
                                             ₹
                                         </div>
 
-                                        {/* Main information */}
                                         <div className="min-w-0 flex-1">
-                                            <p className="truncate text-sm font-medium text-white">
+                                            <p className="truncate text-[15px] font-medium text-sp-text">
                                                 {transaction.note ||
                                                     "Untitled transaction"}
                                             </p>
 
-                                            <p className="mt-1 text-xs text-sp-muted">
+                                            <p className="mt-0.5 text-xs text-sp-muted">
                                                 {time} ·{" "}
                                                 {transaction.splits.length}{" "}
                                                 participant
@@ -245,8 +243,7 @@ export default function TransactionsPage() {
                                             </p>
                                         </div>
 
-                                        {/* Amount */}
-                                        <p className="shrink-0 text-sm font-semibold tabular-nums text-white">
+                                        <p className="tabular shrink-0 text-[15px] font-semibold text-sp-text">
                                             ₹
                                             {Number(
                                                 transaction.total_amount
@@ -254,13 +251,15 @@ export default function TransactionsPage() {
                                                 minimumFractionDigits: 2,
                                             })}
                                         </p>
+
+                                        <ChevronRight size={16} className="-mr-1 shrink-0 text-sp-muted/60" />
                                     </button>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
+                                ))}
+                            </div>
+                        </section>
+                    ))}
+                </div>
+            )}
 
             {showCreateTransaction && (
                 <CreateTransactionModal
@@ -284,57 +283,41 @@ export default function TransactionsPage() {
                 onClick={() => setShowCreateTransaction(true)}
             />
 
-            {showSort && (
-                <div className="fixed inset-0 z-[100] bg-black/50">
-                    <div className="absolute inset-x-0 bottom-0 rounded-t-[28px] bg-sp-bg p-5 shadow-2xl">
-                        <div className="mb-5 flex items-center justify-between">
-                            <h2 className="text-lg font-semibold text-white">
-                                Sort
-                            </h2>
+            <Sheet open={showSort} onClose={() => setShowSort(false)} title="Sort by">
+                <div className="space-y-1 px-3 pb-4">
+                    {[
+                        ["newest", "Newest first"],
+                        ["oldest", "Oldest first"],
+                        ["high", "Amount: high → low"],
+                        ["low", "Amount: low → high"],
+                    ].map(([value, label]) => (
+                        <button
+                            key={value}
+                            type="button"
+                            onClick={() => {
+                                setSortBy(
+                                    value as
+                                    | "newest"
+                                    | "oldest"
+                                    | "high"
+                                    | "low"
+                                );
+                                setShowSort(false);
+                            }}
+                            className={cn(
+                                "flex h-12 w-full items-center justify-between rounded-sp-md px-4 text-[15px] transition-colors active:scale-[0.99]",
+                                sortBy === value
+                                    ? "bg-sp-primary/15 font-medium text-sp-text"
+                                    : "text-sp-muted hover:bg-white/5 hover:text-sp-text"
+                            )}
+                        >
+                            {label}
 
-                            <button
-                                type="button"
-                                onClick={() => setShowSort(false)}
-                                className="text-sp-muted hover:text-white"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        <div className="space-y-2">
-                            {[
-                                ["newest", "Newest first"],
-                                ["oldest", "Oldest first"],
-                                ["high", "Amount: high → low"],
-                                ["low", "Amount: low → high"],
-                            ].map(([value, label]) => (
-                                <button
-                                    key={value}
-                                    type="button"
-                                    onClick={() => {
-                                        setSortBy(
-                                            value as
-                                            | "newest"
-                                            | "oldest"
-                                            | "high"
-                                            | "low"
-                                        );
-                                        setShowSort(false);
-                                    }}
-                                    className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm transition ${sortBy === value
-                                        ? "bg-sp-primary text-white"
-                                        : "bg-sp-surface text-sp-muted hover:text-white"
-                                        }`}
-                                >
-                                    {label}
-
-                                    {sortBy === value && "✓"}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                            {sortBy === value && <Check size={18} className="text-sp-primary" />}
+                        </button>
+                    ))}
                 </div>
-            )}
+            </Sheet>
         </main>
     );
 }

@@ -4,6 +4,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { Toaster } from "@/components/ui/Toast";
 
 export default function Providers({
     children,
@@ -27,6 +28,7 @@ export default function Providers({
     return (
         <QueryClientProvider client={queryClient}>
             {children}
+            <Toaster />
             <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>
     );

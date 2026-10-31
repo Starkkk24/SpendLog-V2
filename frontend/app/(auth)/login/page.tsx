@@ -1,10 +1,14 @@
 "use client";
 
+import { toast } from "@/components/ui/Toast";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { login } from "@/services/auth";
-import { Eye, EyeOff } from "lucide-react";
+import AuthShell from "@/components/auth/AuthShell";
+import Button from "@/components/ui/Button";
+import { Field, Input } from "@/components/ui/Input";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 export default function LoginPage() {
     const [username, setUsername] = useState("");
@@ -27,76 +31,58 @@ export default function LoginPage() {
             router.push("/transactions");
         } catch (error) {
             console.error(error);
-            alert("Invalid username or password");
+            toast.error("Invalid username or password");
         } finally {
             setLoading(false);
         }
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-800">
-
-            <form
-                onSubmit={handleSubmit}
-                className="w-full max-w-sm bg-gray-700 p-8 rounded-xl shadow-lg space-y-5"
-            >
-                <h1 className="text-3xl font-bold text-center">
-                    Login
-                </h1>
-
-                <input
-                    type="text"
-                    placeholder="Username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full border rounded-lg p-3"
-                />
-
-
-                <div className="relative">
-                    <input
-                        type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Enter password"
-                        className="w-full border rounded-lg p-3"
-                    />
-
-                    <button
-                        type="button"
-                        onClick={() => setShowPassword((visible) => !visible)}
-                        className="absolute inset-y-0 right-3 flex items-center text-sp-muted transition hover:text-white"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                        {showPassword ? (
-                            <EyeOff size={20} />
-                        ) : (
-                            <Eye size={20} />
-                        )}
-                    </button>
-                </div>
-
-
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
-                >
-                    {loading ? "Logging in..." : "Login"}
-                </button>
-
-                <p className="text-center text-sm text-gray-300">
+        <AuthShell
+            title="Welcome back"
+            subtitle="Log in to keep your spends in check."
+            footer={
+                <>
                     Don&apos;t have an account?{" "}
-                    <Link
-                        href="/signup"
-                        className="font-medium text-blue-400 hover:text-blue-300 hover:underline"
-                    >
+                    <Link href="/signup" className="font-semibold text-sp-primary hover:underline">
                         Sign up
                     </Link>
-                </p>
+                </>
+            }
+        >
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <Field label="Username">
+                    {(id) => (
+                        <Input
+                            id={id}
+                            type="text"
+                            placeholder="Username"
+                            autoComplete="username"
+                            autoCapitalize="none"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                        />
+                    )}
+                </Field>
 
+                <Field label="Password">
+                    {(id) => (
+                        <PasswordInput
+                            id={id}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Enter password"
+                            autoComplete="current-password"
+                            visible={showPassword}
+                            onToggle={() => setShowPassword((visible) => !visible)}
+                        />
+                    )}
+                </Field>
+
+                <Button type="submit" size="lg" block loading={loading} className="mt-2">
+                    Login
+                </Button>
             </form>
-
-        </div>
+        </AuthShell>
     );
 }
