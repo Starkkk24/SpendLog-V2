@@ -79,10 +79,18 @@ api.interceptors.response.use(
 
             return api(originalRequest);
         } catch (refreshError) {
-            localStorage.removeItem("access");
-            localStorage.removeItem("refresh");
+            // Only a rejected refresh token ends the session. Network errors,
+            // timeouts and 5xx (e.g. a cold start) keep the user logged in.
+            const status = axios.isAxiosError(refreshError)
+                ? refreshError.response?.status
+                : undefined;
 
-            window.location.href = "/login";
+            if (status === 400 || status === 401) {
+                localStorage.removeItem("access");
+                localStorage.removeItem("refresh");
+
+                window.location.href = "/login";
+            }
 
             return Promise.reject(refreshError);
         }
