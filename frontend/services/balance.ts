@@ -11,6 +11,14 @@ export async function getBalance(
     return response.data;
 }
 
+export async function settleContactBalance(contactId: number) {
+    const response = await api.post(
+        `/contacts/${contactId}/settle-all/`
+    );
+
+    return response.data;
+}
+
 export async function getProfileBalance() {
     const response = await api.get(
         `/profile/balance/`

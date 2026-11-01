@@ -357,6 +357,59 @@ class ContactBalanceTests(APITestCase):
             self.assertNotIn("secret", str(response.content))
             self.assertNotIn("500", str(response.content))
 
+    def settle_all(self, contact):
+        return self.client.post(f"/contacts/{contact.id}/settle-all/")
+
+    def test_settle_all_clears_balance(self):
+        self.seed_mixed()
+
+        response = self.settle_all(self.contact)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["settled_balance"], Decimal("15.00"))
+        self.assertEqual(response.data["splits_settled"], 2)
+        self.assertEqual(response.data["individual_settled"], 2)
+
+        data = self.get_balance("false")
+        self.assertEqual(data["balance"], 0)
+        self.assertEqual(data["transactions"], [])
+
+    def test_settle_all_leaves_other_contacts_alone(self):
+        self.seed_mixed()
+        bob_balance = self.client.get(
+            f"/contacts/{self.other_contact.id}/balance/"
+        ).data["balance"]
+
+        self.settle_all(self.contact)
+
+        after = self.client.get(f"/contacts/{self.other_contact.id}/balance/")
+        self.assertEqual(after.data["balance"], bob_balance)
+        self.assertEqual(len(after.data["transactions"]), 2)
+
+    def test_settle_all_with_nothing_to_settle_returns_400(self):
+        self.seed_mixed()
+        self.settle_all(self.contact)
+
+        response = self.settle_all(self.contact)
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_settle_all_other_users_contact_returns_404(self):
+        stranger = User.objects.create_user("stranger", password="x")
+        stranger_contact = Contact.objects.create(owner=stranger, name="secret")
+        lend = IndividualTransaction.objects.create(
+            contact=stranger_contact,
+            direction="lend",
+            amount=500,
+            transaction_datetime=timezone.now(),
+        )
+
+        response = self.settle_all(stranger_contact)
+
+        self.assertEqual(response.status_code, 404)
+        lend.refresh_from_db()
+        self.assertEqual(lend.settled_amount, 0)
+
     def test_empty_contact(self):
         data = self.get_balance("false")
 

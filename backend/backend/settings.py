@@ -35,7 +35,7 @@ DEBUG = os.environ.get("DEBUG", "True").lower() == "true"
 
 ALLOWED_HOSTS = os.environ.get(
     "ALLOWED_HOSTS",
-    "localhost,10.152.87.10,10.178.190.10,127.0.0.1,10.254.162.10,",
+    "localhost,10.92.215.10,10.178.190.10,127.0.0.1,10.254.162.10,",
 ).split(",")
 
 # Render sets this to the service's own *.onrender.com hostname.
@@ -86,7 +86,7 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://10.152.87.10:3000",
+    "http://10.92.215.10:3000",
     "https://spendlog-v2.vercel.app",
 ]
 

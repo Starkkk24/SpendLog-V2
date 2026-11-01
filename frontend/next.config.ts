@@ -12,7 +12,7 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["10.152.87.10", "10.178.190.10", "10.254.162.10"],
+  allowedDevOrigins: ["10.92.215.10", "10.178.190.10", "10.254.162.10"],
   experimental: {
     // Crossfade between routes (see <ViewTransition> in app/(main)/layout.tsx).
     viewTransition: true,

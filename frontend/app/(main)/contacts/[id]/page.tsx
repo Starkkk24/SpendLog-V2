@@ -30,7 +30,7 @@ import {
     Undo2,
     WifiOff,
 } from "lucide-react";
-import { getBalance } from "@/services/balance";
+import { getBalance, settleContactBalance } from "@/services/balance";
 import {
     settleSplit,
     settleSplitCompletely,
@@ -139,6 +139,9 @@ export default function ContactProfilePage() {
     const [deletingIndividual, setDeletingIndividual] =
         useState(false);
 
+    const [showSettleAll, setShowSettleAll] = useState(false);
+    const [settlingAll, setSettlingAll] = useState(false);
+
 
 
 
@@ -236,6 +239,23 @@ export default function ContactProfilePage() {
             );
         } finally {
             setDeletingIndividual(false);
+        }
+    }
+
+    async function handleSettleAll() {
+        if (settlingAll) return;
+
+        try {
+            setSettlingAll(true);
+
+            await settleContactBalance(contactId);
+
+            await invalidateFinancialData();
+            setShowSettleAll(false);
+        } catch (error) {
+            console.error("Failed to settle balance:", error);
+        } finally {
+            setSettlingAll(false);
         }
     }
 
@@ -479,6 +499,18 @@ export default function ContactProfilePage() {
                             <Plus size={18} />
                             Add Transaction
                         </Button>
+
+                        {data.balance !== 0 && (
+                            <Button
+                                block
+                                variant="secondary"
+                                className="relative mt-2"
+                                onClick={() => setShowSettleAll(true)}
+                            >
+                                <CheckCheck size={18} />
+                                Settle Net Balance
+                            </Button>
+                        )}
                     </Card>
 
                     {/* Transaction History */}
@@ -766,6 +798,39 @@ export default function ContactProfilePage() {
                             loading={deletingIndividual}
                         >
                             Delete
+                        </Button>
+                    </>
+                }
+            />
+
+            <Dialog
+                open={showSettleAll}
+                onClose={() => {
+                    if (!settlingAll) setShowSettleAll(false);
+                }}
+                title={`Settle everything with ${data?.contact_name ?? "this contact"}?`}
+                description={
+                    data
+                        ? `${data.balance > 0
+                            ? `${data.contact_name} pays you`
+                            : `You pay ${data.contact_name}`} ₹${formatINR(Math.abs(data.balance))}. All unsettled transactions with this contact will be marked as settled. You can still unsettle individual items from the Settled tab.`
+                        : undefined
+                }
+                actions={
+                    <>
+                        <Button
+                            variant="secondary"
+                            onClick={() => setShowSettleAll(false)}
+                            disabled={settlingAll}
+                        >
+                            Cancel
+                        </Button>
+
+                        <Button
+                            onClick={handleSettleAll}
+                            loading={settlingAll}
+                        >
+                            Settle ₹{formatINR(Math.abs(data?.balance ?? 0))}
                         </Button>
                     </>
                 }

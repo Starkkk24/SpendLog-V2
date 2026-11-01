@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth.models import User
-from django.db.models import Q
+from django.db import transaction as db_transaction
+from django.db.models import F, Q
 from decimal import Decimal
 
 from rest_framework.decorators import api_view, permission_classes
@@ -232,6 +233,21 @@ def transaction_detail(request, pk):
         transaction_obj.delete()
         return Response(status=204)
 
+def contact_splits(user, contact):
+    # Splits where one side paid and the other owes their share.
+    return TransactionSplit.objects.filter(
+        Q(
+            transaction__payer_user=user,
+            contact=contact
+        )
+        |
+        Q(
+            transaction__payer_contact=contact,
+            user=user
+        )
+    )
+
+
 def contact_ledger(user, contact):
     """
     Every expense split and individual transaction between the user and
@@ -242,16 +258,9 @@ def contact_ledger(user, contact):
     # 1. Get all relevant expense splits.
     #    Each split row is read once, so the query count
     #    does not grow with the number of transactions.
-    relevant_splits = TransactionSplit.objects.filter(
-        Q(
-            transaction__payer_user=user,
-            contact=contact
-        )
-        |
-        Q(
-            transaction__payer_contact=contact,
-            user=user
-        )
+    relevant_splits = contact_splits(
+        user,
+        contact
     ).select_related("transaction")
 
     # 2. Get all individual transactions
@@ -368,6 +377,57 @@ def balance_view(request, pk):
         "contact_name": contact.name,
         "balance": ledger_balance(rows),
         "transactions": transactions,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def settle_contact_view(request, pk):
+    """
+    Fully settles every unsettled split and individual transaction
+    with a contact, bringing the net balance to zero.
+    """
+
+    user = request.user
+
+    contact = get_object_or_404(
+        Contact,
+        id=pk,
+        owner=user
+    )
+
+    with db_transaction.atomic():
+        settled_balance = ledger_balance(
+            contact_ledger(user, contact)
+        )
+
+        splits_settled = contact_splits(
+            user,
+            contact
+        ).filter(
+            settled_amount__lt=F("amount")
+        ).update(
+            settled_amount=F("amount")
+        )
+
+        individual_settled = IndividualTransaction.objects.filter(
+            contact=contact,
+            settled_amount__lt=F("amount")
+        ).update(
+            settled_amount=F("amount")
+        )
+
+        if splits_settled == 0 and individual_settled == 0:
+            return Response(
+                {"error": "Nothing to settle."},
+                status=400
+            )
+
+    return Response({
+        "message": "Balance settled successfully.",
+        "settled_balance": settled_balance,
+        "splits_settled": splits_settled,
+        "individual_settled": individual_settled,
     })
 
 
