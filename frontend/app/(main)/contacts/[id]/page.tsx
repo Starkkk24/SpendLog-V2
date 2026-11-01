@@ -25,10 +25,12 @@ import {
     Plus,
     ReceiptText,
     RotateCw,
+    Search,
     Share2,
     Trash2,
     Undo2,
     WifiOff,
+    X,
 } from "lucide-react";
 import { getBalance, settleContactBalance } from "@/services/balance";
 import {
@@ -124,6 +126,8 @@ export default function ContactProfilePage() {
     >("newest");
 
     const [showSort, setShowSort] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [showSearch, setShowSearch] = useState(false);
     const [showShare, setShowShare] = useState(false);
     const [showIndividualForm, setShowIndividualForm] = useState(false);
     const [individualDirection, setIndividualDirection] =
@@ -302,7 +306,32 @@ export default function ContactProfilePage() {
         }
     }
 
-    const sortedTransactions = [...(data?.transactions ?? [])].sort(
+    // Matches note, who paid, the lent/borrowed label, or any of the row's
+    // amounts (ignoring "₹" and commas).
+    const query = searchQuery.trim().toLowerCase();
+    const amountQuery = query.replace(/[₹,\s]/g, "");
+
+    const filteredTransactions = (data?.transactions ?? []).filter((transaction) => {
+        if (!query) return true;
+
+        const label = transaction.type === "individual"
+            ? transaction.direction === "lend" ? "you lent" : "you borrowed"
+            : "";
+
+        const text = [transaction.note, transaction.paid_by, label];
+
+        if (text.some((value) => value?.toLowerCase().includes(query))) {
+            return true;
+        }
+
+        return Boolean(amountQuery) && [
+            transaction.amount,
+            transaction.remaining_amount,
+            transaction.settled_amount,
+        ].some((value) => Math.abs(value).toFixed(2).includes(amountQuery));
+    });
+
+    const sortedTransactions = [...filteredTransactions].sort(
         (a, b) => {
             if (sortBy === "newest") {
                 return (
@@ -396,14 +425,32 @@ export default function ContactProfilePage() {
                 onBack={() => router.back()}
                 actions={
                     data && (
-                        <button
-                            type="button"
-                            onClick={() => setShowShare(true)}
-                            aria-label="Share on WhatsApp"
-                            className="grid size-10 place-items-center rounded-full text-sp-text transition hover:bg-white/5 active:scale-90"
-                        >
-                            <Share2 size={19} />
-                        </button>
+                        <div className="flex items-center">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (showSearch) setSearchQuery("");
+                                    setShowSearch(!showSearch);
+                                }}
+                                aria-label={showSearch ? "Close search" : "Search transactions"}
+                                aria-pressed={showSearch}
+                                className={cn(
+                                    "grid size-10 place-items-center rounded-full transition hover:bg-white/5 active:scale-90",
+                                    showSearch ? "text-sp-primary" : "text-sp-text"
+                                )}
+                            >
+                                <Search size={19} />
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setShowShare(true)}
+                                aria-label="Share on WhatsApp"
+                                className="grid size-10 place-items-center rounded-full text-sp-text transition hover:bg-white/5 active:scale-90"
+                            >
+                                <Share2 size={19} />
+                            </button>
+                        </div>
                     )
                 }
             />
@@ -538,11 +585,42 @@ export default function ContactProfilePage() {
                             </button>
                         </div>
 
+                        {showSearch && (
+                            <label className="mt-3 flex h-11 animate-fade-in items-center gap-2 rounded-sp-md border border-sp-border bg-sp-card px-3.5 transition focus-within:border-sp-primary focus-within:ring-4 focus-within:ring-sp-primary/20">
+                                <Search size={18} className="shrink-0 text-sp-muted" />
+
+                                <input
+                                    type="search"
+                                    autoFocus
+                                    placeholder="Search by note or amount..."
+                                    value={searchQuery}
+                                    onChange={(e) =>
+                                        setSearchQuery(e.target.value)
+                                    }
+                                    className="min-w-0 flex-1 bg-transparent text-base text-sp-text outline-none placeholder:text-sp-muted"
+                                />
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSearchQuery("");
+                                        setShowSearch(false);
+                                    }}
+                                    aria-label="Close search"
+                                    className="-mr-1.5 grid size-8 shrink-0 place-items-center rounded-full text-sp-muted transition hover:text-sp-text active:scale-90"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </label>
+                        )}
+
                         {data.transactions.length === 0 ? (
                             <EmptyState
                                 icon={showSettled ? CheckCheck : ReceiptText}
                                 title="No transactions with this contact."
                             />
+                        ) : groups.length === 0 ? (
+                            <EmptyState icon={Search} title="No transactions found." description={`Nothing matches "${searchQuery}".`} />
                         ) : (
                             <div className="mt-2 space-y-4">
                                 {groups.map((group) => (
