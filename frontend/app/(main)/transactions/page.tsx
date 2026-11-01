@@ -7,7 +7,7 @@ import Sheet from "@/components/ui/Sheet";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import PageHeader from "@/components/navigation/PageHeader";
 import { cn } from "@/lib/cn";
-import { ArrowUpDown, Check, ChevronRight, ReceiptText, RotateCw, WifiOff } from "lucide-react";
+import { ArrowUpDown, Check, ChevronRight, ReceiptText, RotateCw, Search, WifiOff } from "lucide-react";
 import CreateTransactionModal from "@/components/transactions/CreateTransactionModal";
 
 // import { useEffect, useState } from "react";
@@ -23,6 +23,7 @@ type Split = {
     id: number;
     user: number | null;
     contact: number | null;
+    contact_name: string | null;
     amount: string;
 };
 
@@ -30,6 +31,7 @@ type Transaction = {
     id: number;
     payer_user: number | null;
     payer_contact: number | null;
+    payer_contact_name: string | null;
     total_amount: string;
     note: string;
     transaction_datetime: string;
@@ -60,6 +62,9 @@ export default function TransactionsPage() {
         "newest" | "oldest" | "high" | "low"
     >("newest");
 
+    const [showSort, setShowSort] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+
     if (isError) {
         console.error("Failed to load transactions:", error);
 
@@ -81,7 +86,33 @@ export default function TransactionsPage() {
         );
     }
 
-    const sortedTransactions = [...transactions].sort((a, b) => {
+    // Matches note, total amount (ignoring "₹" and commas) or any participant
+    // name, including the payer. The current user's splits match "you".
+    const query = searchQuery.trim().toLowerCase();
+    const amountQuery = query.replace(/[₹,\s]/g, "");
+
+    const filteredTransactions = query
+        ? transactions.filter((transaction) => {
+            if (transaction.note.toLowerCase().includes(query)) {
+                return true;
+            }
+
+            if (amountQuery && transaction.total_amount.includes(amountQuery)) {
+                return true;
+            }
+
+            const names = [
+                transaction.payer_user !== null ? "you" : transaction.payer_contact_name,
+                ...transaction.splits.map((split) =>
+                    split.user !== null ? "you" : split.contact_name
+                ),
+            ];
+
+            return names.some((name) => name?.toLowerCase().includes(query));
+        })
+        : transactions;
+
+    const sortedTransactions = [...filteredTransactions].sort((a, b) => {
         if (sortBy === "newest") {
             return (
                 new Date(b.transaction_datetime).getTime() -
@@ -102,8 +133,6 @@ export default function TransactionsPage() {
 
         return Number(a.total_amount) - Number(b.total_amount);
     });
-
-    const [showSort, setShowSort] = useState(false);
 
     // async function loadTransactions() {
     //     try {
@@ -202,6 +231,24 @@ export default function TransactionsPage() {
                     description="Create your first transaction to start building your SpendLog."
                 />
             ) : (
+                <div>
+                    <label className="mb-3 flex h-11 items-center gap-2 rounded-sp-md border border-sp-border bg-sp-card px-3.5 transition focus-within:border-sp-primary focus-within:ring-4 focus-within:ring-sp-primary/20">
+                        <Search size={18} className="shrink-0 text-sp-muted" />
+
+                        <input
+                            type="search"
+                            placeholder="Search by note, amount or person..."
+                            value={searchQuery}
+                            onChange={(e) =>
+                                setSearchQuery(e.target.value)
+                            }
+                            className="min-w-0 flex-1 bg-transparent text-base text-sp-text outline-none placeholder:text-sp-muted"
+                        />
+                    </label>
+
+                    {groups.length === 0 ? (
+                        <EmptyState icon={Search} title="No transactions found." description={`Nothing matches "${searchQuery}".`} />
+                    ) : (
                 <div className="space-y-5">
                     {groups.map((group) => (
                         <section key={`${group.day}-${group.items[0].transaction.id}`}>
@@ -258,6 +305,8 @@ export default function TransactionsPage() {
                             </div>
                         </section>
                     ))}
+                </div>
+                    )}
                 </div>
             )}
 
