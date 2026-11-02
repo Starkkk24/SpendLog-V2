@@ -1,13 +1,6 @@
 "use client";
 
-// import { useEffect, useState } from "react";
-// import { useRouter } from "next/navigation";
-// import { LogOut, User } from "lucide-react";
-// import { getCurrentUser, logout } from "@/services/auth";
-// import { getProfileBalance } from "@/services/balance";
-
-"use client";
-
+import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { ArrowDownLeft, ArrowUpRight, LogOut, User, WifiOff } from "lucide-react";
@@ -18,11 +11,17 @@ import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import PageHeader from "@/components/navigation/PageHeader";
+import ContactBalanceList, {
+    type BalanceFilter,
+    type ContactBalance,
+} from "@/components/profile/ContactBalanceList";
 import { cn } from "@/lib/cn";
 
 export default function ProfilePage() {
     const router = useRouter();
     const queryClient = useQueryClient();
+    const [balanceFilter, setBalanceFilter] = useState<BalanceFilter>("all");
+    const pendingRef = useRef<HTMLElement>(null);
 
     const {
         data: userData,
@@ -46,6 +45,14 @@ export default function ProfilePage() {
     const profileBalance = Number(balanceData?.profile_balance ?? 0);
     const lend = Number(balanceData?.lend ?? 0);
     const borrow = Number(balanceData?.borrow ?? 0);
+    const contactBalances: ContactBalance[] = (balanceData?.contacts ?? []).map(
+        (contact: ContactBalance) => ({ ...contact, balance: Number(contact.balance) })
+    );
+
+    function showPending(filter: BalanceFilter) {
+        setBalanceFilter(filter);
+        pendingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
 
     if (isPending || balancePending) {
         return (
@@ -166,7 +173,18 @@ export default function ProfilePage() {
                     <div className="grid grid-cols-2 gap-3">
 
                         {/* Lent */}
-                        <Card className="p-4">
+                        <Card
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => showPending("lent")}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    showPending("lent");
+                                }
+                            }}
+                            className="cursor-pointer p-4 transition active:scale-[0.98]"
+                        >
                             <div className="flex items-center gap-2 text-sm text-sp-muted">
                                 <span className="grid size-7 place-items-center rounded-full bg-sp-success/15 text-sp-success">
                                     <ArrowUpRight size={15} />
@@ -184,7 +202,18 @@ export default function ProfilePage() {
                         </Card>
 
                         {/* Borrowed */}
-                        <Card className="p-4">
+                        <Card
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => showPending("borrowed")}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    showPending("borrowed");
+                                }
+                            }}
+                            className="cursor-pointer p-4 transition active:scale-[0.98]"
+                        >
                             <div className="flex items-center gap-2 text-sm text-sp-muted">
                                 <span className="grid size-7 place-items-center rounded-full bg-sp-danger/15 text-sp-danger">
                                     <ArrowDownLeft size={15} />
@@ -202,6 +231,22 @@ export default function ProfilePage() {
                         </Card>
 
                     </div>
+                </section>
+
+                {/* Pending settlements */}
+                <section
+                    ref={pendingRef}
+                    className="scroll-mt-4 animate-rise-in [animation-delay:90ms]"
+                >
+                    <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-sp-muted">
+                        Pending Settlements
+                    </h2>
+
+                    <ContactBalanceList
+                        contacts={contactBalances}
+                        filter={balanceFilter}
+                        onFilterChange={setBalanceFilter}
+                    />
                 </section>
 
                 {/* Logout */}

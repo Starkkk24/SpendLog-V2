@@ -493,9 +493,18 @@ def statement_view(request, pk):
 def profile_balance_view(request):
         user = request.user
 
-        profile_balance = 0
-        lend = 0
-        borrow = 0
+        # Net remaining amount per contact; positive means they owe the user.
+        contacts = {}
+
+        def add(contact, amount):
+            entry = contacts.setdefault(contact.id, {
+                "id": contact.id,
+                "name": contact.name,
+                "balance": 0,
+                "open_count": 0,
+            })
+            entry["balance"] += amount
+            entry["open_count"] += 1
 
         relevant_splits = (
             TransactionSplit.objects
@@ -505,8 +514,8 @@ def profile_balance_view(request):
                 Q(transaction__payer_contact__owner=user, user=user)
             )
             .select_related(
+                "contact",
                 "transaction",
-                "transaction__payer_user",
                 "transaction__payer_contact",
             )
         )
@@ -518,13 +527,11 @@ def profile_balance_view(request):
             if remaining_amount <= 0:
                 continue
 
-            if transaction.payer_user == user:
-                profile_balance += remaining_amount
-                lend += remaining_amount
+            if transaction.payer_user_id == user.id:
+                add(split.contact, remaining_amount)
 
             elif transaction.payer_contact is not None:
-                profile_balance -= remaining_amount
-                borrow += remaining_amount
+                add(transaction.payer_contact, -remaining_amount)
 
         individual_transactions = (
             IndividualTransaction.objects
@@ -541,17 +548,26 @@ def profile_balance_view(request):
                 continue
 
             if transaction.direction == "lend":
-                profile_balance += remaining_amount
-                lend += remaining_amount
+                add(transaction.contact, remaining_amount)
 
             elif transaction.direction == "borrow":
-                profile_balance -= remaining_amount
-                borrow += remaining_amount
+                add(transaction.contact, -remaining_amount)
+
+        # Contacts whose items cancel out are settled up, so they're left out.
+        balances = sorted(
+            (entry for entry in contacts.values() if entry["balance"] != 0),
+            key=lambda entry: -abs(entry["balance"]),
+        )
+
+        # Lent/borrow are net per contact, so they add up to the lists.
+        lend = sum(entry["balance"] for entry in balances if entry["balance"] > 0)
+        borrow = -sum(entry["balance"] for entry in balances if entry["balance"] < 0)
 
         return Response({
-            "profile_balance": profile_balance,
+            "profile_balance": lend - borrow,
             "lend": lend,
             "borrow": borrow,
+            "contacts": balances,
         })
 
 

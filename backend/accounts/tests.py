@@ -672,3 +672,88 @@ class IndividualTransactionValidationTests(APITestCase):
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data["contact_name"], "alice")
+
+
+class ProfileBalanceTests(APITestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user("owner", password="x")
+        self.alice = Contact.objects.create(owner=self.user, name="alice")
+        self.bob = Contact.objects.create(owner=self.user, name="bob")
+        self.carol = Contact.objects.create(owner=self.user, name="carol")
+        self.client.force_authenticate(self.user)
+
+    def individual(self, contact, direction, amount, settled=0):
+        return IndividualTransaction.objects.create(
+            contact=contact,
+            direction=direction,
+            amount=amount,
+            settled_amount=settled,
+            transaction_datetime=timezone.now(),
+        )
+
+    def split_paid_by_contact(self, contact, amount, settled=0):
+        transaction_obj = Transaction.objects.create(
+            payer_contact=contact,
+            total_amount=amount,
+            transaction_datetime=timezone.now(),
+        )
+        return TransactionSplit.objects.create(
+            transaction=transaction_obj,
+            user=self.user,
+            amount=amount,
+            settled_amount=settled,
+        )
+
+    def get_profile(self):
+        response = self.client.get("/profile/balance/")
+        self.assertEqual(response.status_code, 200)
+        return response.data
+
+    def test_contacts_are_net_and_sorted_by_size(self):
+        # alice: lent 1000, she paid 300 for the user -> owes 700.
+        self.individual(self.alice, "lend", 1000)
+        self.split_paid_by_contact(self.alice, 300)
+        # bob: borrowed 900, 100 of it repaid -> user owes 800.
+        self.individual(self.bob, "borrow", 900, settled=100)
+
+        data = self.get_profile()
+
+        self.assertEqual(
+            [(c["name"], c["balance"], c["open_count"]) for c in data["contacts"]],
+            [("bob", Decimal("-800"), 1), ("alice", Decimal("700"), 2)],
+        )
+        self.assertEqual(data["lend"], Decimal("700"))
+        self.assertEqual(data["borrow"], Decimal("800"))
+        self.assertEqual(data["profile_balance"], Decimal("-100"))
+
+    def test_settled_and_cancelled_out_contacts_are_excluded(self):
+        self.individual(self.alice, "lend", 50, settled=50)
+        self.individual(self.bob, "lend", 40)
+        self.individual(self.bob, "borrow", 40)
+
+        data = self.get_profile()
+
+        self.assertEqual(data["contacts"], [])
+        self.assertEqual(data["lend"], 0)
+        self.assertEqual(data["borrow"], 0)
+
+    def test_other_users_contacts_are_excluded(self):
+        other = User.objects.create_user("other", password="x")
+        stranger = Contact.objects.create(owner=other, name="stranger")
+        self.individual(stranger, "lend", 500)
+        self.individual(self.carol, "lend", 20)
+
+        data = self.get_profile()
+
+        self.assertEqual([c["name"] for c in data["contacts"]], ["carol"])
+
+    def test_query_count_is_constant(self):
+        for contact in (self.alice, self.bob, self.carol):
+            self.individual(contact, "lend", 10)
+            self.split_paid_by_contact(contact, 5)
+
+        with CaptureQueriesContext(connection) as queries:
+            self.get_profile()
+
+        self.assertLessEqual(len(queries), 3)
