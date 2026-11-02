@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { ArrowDownLeft, ArrowUpRight, LogOut, User, WifiOff } from "lucide-react";
 import { getCurrentUser, logout } from "@/services/auth";
 import { getProfileBalance } from "@/services/balance";
+import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import { CardSkeleton } from "@/components/ui/Skeleton";
@@ -66,6 +67,13 @@ export default function ProfilePage() {
                     icon={WifiOff}
                     title="Failed to load profile."
                     description="Please refresh the page."
+                    action={
+                        // Always offer a way out, even when the API is unreachable.
+                        <Button variant="danger" onClick={handleLogout}>
+                            <LogOut size={16} />
+                            Logout
+                        </Button>
+                    }
                 />
             </main>
         );

@@ -79,13 +79,14 @@ api.interceptors.response.use(
 
             return api(originalRequest);
         } catch (refreshError) {
-            // Only a rejected refresh token ends the session. Network errors,
-            // timeouts and 5xx (e.g. a cold start) keep the user logged in.
+            // Any 4xx means the refresh token was rejected and the session is
+            // over. Network errors, timeouts and 5xx (e.g. a cold start) keep
+            // the user logged in; the Profile page still offers Logout.
             const status = axios.isAxiosError(refreshError)
                 ? refreshError.response?.status
                 : undefined;
 
-            if (status === 400 || status === 401) {
+            if (status !== undefined && status < 500) {
                 localStorage.removeItem("access");
                 localStorage.removeItem("refresh");
 
