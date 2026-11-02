@@ -12,7 +12,7 @@ export type StatementRow = {
     note: string;
 };
 
-type StatementInput = {
+export type StatementInput = {
     contactName: string;
     status: StatementStatus;
     /** Local "YYYY-MM-DD" values from the date inputs; empty means open-ended. */
@@ -62,49 +62,77 @@ function rangeLabel(from: string, to: string) {
     return "All dates";
 }
 
+export type StatementLine = {
+    day: string;
+    note: string;
+    /** Written from the sender's side: "me" is the user, "you" is the contact. */
+    byMe: boolean;
+    action: "Paid" | "Lent";
+    amount: string;
+    /** Set when the row is partly settled. */
+    remaining: string | null;
+    /** Marks settled rows when the statement mixes settled and unsettled. */
+    settledTick: boolean;
+};
+
+/** The rows ready to print, oldest first so they read like a statement. */
+export function statementLines({ rows, status }: StatementInput): StatementLine[] {
+    return [...rows].reverse().map((row) => {
+        const date = new Date(row.date);
+        return {
+            day: formatDay(date, date.getFullYear() !== new Date().getFullYear()),
+            note: row.note.trim() || "No note",
+            byMe: row.type === "individual" ? row.direction === "lend" : row.amount > 0,
+            action: row.type === "individual" ? "Lent" : "Paid",
+            amount: money(row.amount),
+            remaining:
+                !row.settled && row.settled_amount > 0 ? money(row.remaining_amount) : null,
+            settledTick: row.settled && status === "all",
+        };
+    });
+}
+
+export function statementHeading({ contactName, status, from, to }: StatementInput) {
+    return {
+        title: `Expenses with ${contactName}`,
+        subtitle: `${rangeLabel(from, to)} · ${statusLabels[status]}`,
+    };
+}
+
+export function statementTotal({ status, rows, balance }: StatementInput) {
+    if (status === "settled") {
+        const total = rows.reduce((sum, row) => sum + Math.abs(row.amount), 0);
+        return { label: "Total settled", value: money(total), tone: "neutral" } as const;
+    }
+    if (balance > 0) {
+        return { label: "Net Result", value: `You owe me ${money(balance)}`, tone: "positive" } as const;
+    }
+    if (balance < 0) {
+        return { label: "Net Result", value: `I owe you ${money(balance)}`, tone: "negative" } as const;
+    }
+    return { label: "Net Result", value: "All settled up", tone: "neutral" } as const;
+}
+
 const headers = ["Date", "Item / Description", "Paid/Lent by Me", "Paid/Lent by You"];
 const columnGap = "  ";
 
-function rowCells(row: StatementRow, status: StatementStatus, amountWidth: number) {
-    const date = new Date(row.date);
-    const day = formatDay(date, date.getFullYear() !== new Date().getFullYear());
+function rowCells(line: StatementLine, amountWidth: number) {
+    const detail = line.remaining ? `${line.action}, ${line.remaining} left` : line.action;
+    const tick = line.settledTick ? " ✓" : "";
+    const cell = `${line.amount.padEnd(amountWidth)} (${detail})${tick}`;
 
-    // Written from the sender's side: "Me" is the user, "You" is the contact.
-    const byMe =
-        row.type === "individual" ? row.direction === "lend" : row.amount > 0;
-    const action = row.type === "individual" ? "Lent" : "Paid";
-
-    const partial = !row.settled && row.settled_amount > 0;
-    const detail = partial ? `${action}, ${money(row.remaining_amount)} left` : action;
-    const tick = row.settled && status === "all" ? " ✓" : "";
-    const cell = `${money(row.amount).padEnd(amountWidth)} (${detail})${tick}`;
-
-    return [
-        day,
-        row.note.trim() || "No note",
-        byMe ? cell : "-",
-        byMe ? "-" : cell,
-    ];
-}
-
-function totalLine({ status, rows, balance }: StatementInput) {
-    if (status === "settled") {
-        const total = rows.reduce((sum, row) => sum + Math.abs(row.amount), 0);
-        return `Total settled: ${money(total)}`;
-    }
-    if (balance > 0) return `Net Result: You owe me ${money(balance)}`;
-    if (balance < 0) return `Net Result: I owe you ${money(balance)}`;
-    return "Net Result: All settled up";
+    return [line.day, line.note, line.byMe ? cell : "-", line.byMe ? "-" : cell];
 }
 
 /** Bold header, then the rows as a table in a WhatsApp monospace (```) block. */
 export function buildStatementMessage(input: StatementInput) {
-    // Oldest first reads like a statement.
-    const rows = [...input.rows].reverse();
+    const rows = statementLines(input);
+    const { title, subtitle } = statementHeading(input);
+    const total = statementTotal(input);
 
     // Pad amounts to one width so the "(Paid)" / "(Lent)" labels line up.
-    const amountWidth = Math.max(0, ...rows.map((row) => money(row.amount).length));
-    const table = [headers, ...rows.map((row) => rowCells(row, input.status, amountWidth))];
+    const amountWidth = Math.max(0, ...rows.map((line) => line.amount.length));
+    const table = [headers, ...rows.map((line) => rowCells(line, amountWidth))];
     const widths = headers.map((_, i) => Math.max(...table.map((cells) => cells[i].length)));
 
     const lines = table.map((cells) =>
@@ -115,15 +143,15 @@ export function buildStatementMessage(input: StatementInput) {
     );
 
     return [
-        `*Expenses with ${input.contactName}*`,
-        `${rangeLabel(input.from, input.to)} · ${statusLabels[input.status]}`,
+        `*${title}*`,
+        subtitle,
         "",
         "```",
         lines[0],
         rule,
         ...(rows.length ? lines.slice(1) : ["No transactions."]),
         rule,
-        totalLine(input),
+        `${total.label}: ${total.value}`,
         "```",
     ].join("\n");
 }

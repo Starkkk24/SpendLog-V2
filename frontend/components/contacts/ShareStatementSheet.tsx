@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Copy, MessageCircle, RotateCw } from "lucide-react";
+import { Copy, MessageCircle, RotateCw, Share2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
 import Segmented from "@/components/ui/Segmented";
@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { toast } from "@/components/ui/Toast";
 import { getStatement, type StatementStatus } from "@/services/balance";
 import { buildStatementMessage, statementBounds, type StatementRow } from "@/lib/statement";
+import { renderStatementImage } from "@/lib/statementImage";
 
 type ShareStatementSheetProps = {
     open: boolean;
@@ -85,6 +86,63 @@ export default function ShareStatementSheet({
         ? buildStatementMessage({ contactName, status, from, to, ...data })
         : "";
 
+    // Rendered ahead of the tap: browsers only allow navigator.share right
+    // after a user gesture, so there's no time to draw the image on click.
+    const [image, setImage] = useState<{ blob: Blob; url: string } | null>(null);
+    const [imageFailed, setImageFailed] = useState(false);
+
+    useEffect(() => {
+        if (!data) return;
+        let cancelled = false;
+
+        renderStatementImage({ contactName, status, from, to, ...data })
+            .then((blob) => {
+                if (cancelled) return;
+                setImage({ blob, url: URL.createObjectURL(blob) });
+                setImageFailed(false);
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setImage(null);
+                setImageFailed(true);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [data, contactName, status, from, to]);
+
+    // Freed only once the next image replaces it, so the preview never flashes blank.
+    useEffect(() => () => {
+        if (image) URL.revokeObjectURL(image.url);
+    }, [image]);
+
+    async function handleShareImage() {
+        if (!image) return;
+
+        const fileName = `SpendLog-${contactName.trim().replace(/[^\w-]+/g, "-") || "statement"}.png`;
+        const file = new File([image.blob], fileName, { type: "image/png" });
+
+        // Phones open the system share sheet (WhatsApp included); desktops,
+        // and plain-HTTP LAN testing, download the image instead.
+        if (navigator.canShare?.({ files: [file] })) {
+            try {
+                await navigator.share({ files: [file] });
+            } catch (error) {
+                if ((error as DOMException).name !== "AbortError") {
+                    toast.error("Couldn't share the image");
+                }
+            }
+            return;
+        }
+
+        const link = document.createElement("a");
+        link.href = image.url;
+        link.download = fileName;
+        link.click();
+        toast.success("Image downloaded");
+    }
+
     async function handleCopy() {
         try {
             await copyText(message);
@@ -103,7 +161,7 @@ export default function ShareStatementSheet({
     }
 
     return (
-        <Sheet open={open} onClose={onClose} title="Share on WhatsApp">
+        <Sheet open={open} onClose={onClose} title="Share statement">
             <div className="px-5 pb-5">
                 <Segmented
                     value={status}
@@ -166,46 +224,65 @@ export default function ShareStatementSheet({
 
                 <p className="mt-4 mb-1.5 text-sm font-medium text-sp-muted">Preview</p>
 
-                <div className="max-h-64 overflow-y-auto rounded-sp-md bg-sp-card p-4 ring-1 ring-sp-border">
+                <div className="max-h-80 overflow-y-auto rounded-sp-md ring-1 ring-sp-border">
                     {isError ? (
-                        <div className="flex items-center justify-between gap-3 text-sm">
+                        <div className="flex items-center justify-between gap-3 bg-sp-card p-4 text-sm">
                             <p className="text-sp-danger">Couldn&apos;t load transactions.</p>
                             <Button size="sm" variant="secondary" onClick={() => void refetch()}>
                                 <RotateCw size={14} />
                                 Retry
                             </Button>
                         </div>
-                    ) : isPending ? (
-                        <div className="space-y-2">
+                    ) : imageFailed ? (
+                        <p className="bg-sp-card p-4 text-sm text-sp-danger">
+                            Couldn&apos;t create the image. You can still share as text.
+                        </p>
+                    ) : isPending || !image ? (
+                        <div className="space-y-2 bg-sp-card p-4">
                             <Skeleton className="h-4 w-1/2" />
                             <Skeleton className="h-4 w-full" />
                             <Skeleton className="h-4 w-5/6" />
                         </div>
                     ) : (
-                        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-sp-text">
-                            {message}
-                        </p>
+                        // eslint-disable-next-line @next/next/no-img-element -- local blob URL
+                        <img
+                            src={image.url}
+                            alt={`Statement of expenses with ${contactName}`}
+                            className="block w-full"
+                        />
                     )}
                 </div>
 
-                <div className="mt-5 grid grid-cols-[auto_1fr] gap-2">
+                <div className="mt-5 grid grid-cols-[auto_auto_1fr] gap-2">
                     <Button
                         size="lg"
                         variant="secondary"
                         onClick={handleCopy}
                         disabled={!message || rangeInvalid}
-                        aria-label="Copy message"
+                        aria-label="Copy as text"
+                        title="Copy as text"
                     >
                         <Copy size={18} />
                     </Button>
 
                     <Button
                         size="lg"
+                        variant="secondary"
                         onClick={handleWhatsApp}
                         disabled={!message || rangeInvalid}
+                        aria-label="Send as text on WhatsApp"
+                        title="Send as text on WhatsApp"
                     >
                         <MessageCircle size={18} />
-                        Send on WhatsApp
+                    </Button>
+
+                    <Button
+                        size="lg"
+                        onClick={handleShareImage}
+                        disabled={!image || rangeInvalid}
+                    >
+                        <Share2 size={18} />
+                        Share image
                     </Button>
                 </div>
             </div>
